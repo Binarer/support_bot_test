@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Custom Emoji из Topics</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .emoji-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .emoji-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .emoji-preview {
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f9fafb;
+            font-size: 64px;
+        }
+
+        .emoji-info {
+            padding: 16px;
+        }
+
+        .emoji-info p {
+            margin: 8px 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .value {
+            word-break: break-all;
+            font-family: monospace;
+            color: #222;
+        }
+
+        .emoji-id {
+            font-size: 12px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+<h1>🎭 Custom Emoji из пакета «Topics»</h1>
+<div class="container" id="emoji-container">
+    <!-- Сюда будет вставлено содержимое через JS -->
+</div>
+
+<script>
+    const emojiData = [
+        {
+            "emoji": "📰",
+            "set_name": "Topics",
+            "custom_emoji_id": "5434144690511290129",
+            "is_animated": true,
+            "file_size": 58365
+        },
+        {
+            "emoji": "💡",
+            "set_name": "Topics",
+            "custom_emoji_id": "5312536423851630001",
+            "is_animated": true,
+            "file_size": 3835
+        },
+        {
+            "emoji": "⚡️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5312016608254762256",
+            "is_animated": true,
+            "file_size": 33261
+        },
+        {
+            "emoji": "🎙",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377544228505134960",
+            "is_animated": true,
+            "file_size": 26916
+        },
+        {
+            "emoji": "🔝",
+            "set_name": "Topics",
+            "custom_emoji_id": "5418085807791545980",
+            "is_animated": true,
+            "file_size": 1739
+        },
+        {
+            "emoji": "🗣",
+            "set_name": "Topics",
+            "custom_emoji_id": "5370870893004203704",
+            "is_animated": true,
+            "file_size": 7765
+        },
+        {
+            "emoji": "🆒",
+            "set_name": "Topics",
+            "custom_emoji_id": "5420216386448270341",
+            "is_animated": true,
+            "file_size": 22928
+        },
+        {
+            "emoji": "❗️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5379748062124056162",
+            "is_animated": true,
+            "file_size": 2072
+        },
+        {
+            "emoji": "📝",
+            "set_name": "Topics",
+            "custom_emoji_id": "5373251851074415873",
+            "is_animated": true,
+            "file_size": 64148
+        },
+        {
+            "emoji": "📆",
+            "set_name": "Topics",
+            "custom_emoji_id": "5433614043006903194",
+            "is_animated": true,
+            "file_size": 48846
+        },
+        {
+            "emoji": "📁",
+            "set_name": "Topics",
+            "custom_emoji_id": "5357315181649076022",
+            "is_animated": true,
+            "file_size": 8597
+        },
+        {
+            "emoji": "🔎",
+            "set_name": "Topics",
+            "custom_emoji_id": "5309965701241379366",
+            "is_animated": true,
+            "file_size": 12475
+        },
+        {
+            "emoji": "📣",
+            "set_name": "Topics",
+            "custom_emoji_id": "5309984423003823246",
+            "is_animated": true,
+            "file_size": 45266
+        },
+        {
+            "emoji": "🔥",
+            "set_name": "Topics",
+            "custom_emoji_id": "5312241539987020022",
+            "is_animated": true,
+            "file_size": 26099
+        },
+        {
+            "emoji": "❤️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5312138559556164615",
+            "is_animated": true,
+            "file_size": 56477
+        },
+        {
+            "emoji": "❓",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377316857231450742",
+            "is_animated": true,
+            "file_size": 2461
+        },
+        {
+            "emoji": "📈",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350305691942788490",
+            "is_animated": true,
+            "file_size": 3621
+        },
+        {
+            "emoji": "📉",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350713563512052787",
+            "is_animated": true,
+            "file_size": 3666
+        },
+        {
+            "emoji": "💎",
+            "set_name": "Topics",
+            "custom_emoji_id": "5309958691854754293",
+            "is_animated": true,
+            "file_size": 47932
+        },
+        {
+            "emoji": "💰",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350452584119279096",
+            "is_animated": true,
+            "file_size": 60056
+        },
+        {
+            "emoji": "💸",
+            "set_name": "Topics",
+            "custom_emoji_id": "5309929258443874898",
+            "is_animated": true,
+            "file_size": 54581
+        },
+        {
+            "emoji": "🪙",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377690785674175481",
+            "is_animated": true,
+            "file_size": 36430
+        },
+        {
+            "emoji": "💱",
+            "set_name": "Topics",
+            "custom_emoji_id": "5310107765874632305",
+            "is_animated": true,
+            "file_size": 12949
+        },
+        {
+            "emoji": "⁉️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377438129928020693",
+            "is_animated": true,
+            "file_size": 3935
+        },
+        {
+            "emoji": "🎮",
+            "set_name": "Topics",
+            "custom_emoji_id": "5309950797704865693",
+            "is_animated": true,
+            "file_size": 21544
+        },
+        {
+            "emoji": "💻",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350554349074391003",
+            "is_animated": true,
+            "file_size": 18100
+        },
+        {
+            "emoji": "📱",
+            "set_name": "Topics",
+            "custom_emoji_id": "5409357944619802453",
+            "is_animated": true,
+            "file_size": 7835
+        },
+        {
+            "emoji": "🚗",
+            "set_name": "Topics",
+            "custom_emoji_id": "5312322066328853156",
+            "is_animated": true,
+            "file_size": 14310
+        },
+        {
+            "emoji": "🏠",
+            "set_name": "Topics",
+            "custom_emoji_id": "5312486108309757006",
+            "is_animated": true,
+            "file_size": 45679
+        },
+        {
+            "emoji": "💘",
+            "set_name": "Topics",
+            "custom_emoji_id": "5310029292527164639",
+            "is_animated": true,
+            "file_size": 13316
+        },
+        {
+            "emoji": "🎉",
+            "set_name": "Topics",
+            "custom_emoji_id": "5310228579009699834",
+            "is_animated": true,
+            "file_size": 14103
+        },
+        {
+            "emoji": "‼️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377498341074542641",
+            "is_animated": true,
+            "file_size": 3154
+        },
+        {
+            "emoji": "🏆",
+            "set_name": "Topics",
+            "custom_emoji_id": "5312315739842026755",
+            "is_animated": true,
+            "file_size": 60319
+        },
+        {
+            "emoji": "🏁",
+            "set_name": "Topics",
+            "custom_emoji_id": "5408906741125490282",
+            "is_animated": true,
+            "file_size": 57699
+        },
+        {
+            "emoji": "🎬",
+            "set_name": "Topics",
+            "custom_emoji_id": "5368653135101310687",
+            "is_animated": true,
+            "file_size": 36870
+        },
+        {
+            "emoji": "🎵",
+            "set_name": "Topics",
+            "custom_emoji_id": "5310045076531978942",
+            "is_animated": true,
+            "file_size": 4959
+        },
+        {
+            "emoji": "🔞",
+            "set_name": "Topics",
+            "custom_emoji_id": "5420331611830886484",
+            "is_animated": true,
+            "file_size": 7071
+        },
+        {
+            "emoji": "📚",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350481781306958339",
+            "is_animated": true,
+            "file_size": 21045
+        },
+        {
+            "emoji": "👑",
+            "set_name": "Topics",
+            "custom_emoji_id": "5357107601584693888",
+            "is_animated": true,
+            "file_size": 35126
+        },
+        {
+            "emoji": "⚽️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5375159220280762629",
+            "is_animated": true,
+            "file_size": 45549
+        },
+        {
+            "emoji": "🏀",
+            "set_name": "Topics",
+            "custom_emoji_id": "5384327463629233871",
+            "is_animated": true,
+            "file_size": 34969
+        },
+        {
+            "emoji": "📺",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350513667144163474",
+            "is_animated": true,
+            "file_size": 13707
+        },
+        {
+            "emoji": "👀",
+            "set_name": "Topics",
+            "custom_emoji_id": "5357121491508928442",
+            "is_animated": true,
+            "file_size": 6587
+        },
+        {
+            "emoji": "🫦",
+            "set_name": "Topics",
+            "custom_emoji_id": "5357185426392096577",
+            "is_animated": true,
+            "file_size": 19899
+        },
+        {
+            "emoji": "🍓",
+            "set_name": "Topics",
+            "custom_emoji_id": "5310157398516703416",
+            "is_animated": true,
+            "file_size": 64753
+        },
+        {
+            "emoji": "💄",
+            "set_name": "Topics",
+            "custom_emoji_id": "5310262535021142850",
+            "is_animated": true,
+            "file_size": 9766
+        },
+        {
+            "emoji": "👠",
+            "set_name": "Topics",
+            "custom_emoji_id": "5368741306484925109",
+            "is_animated": true,
+            "file_size": 11167
+        },
+        {
+            "emoji": "✈️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5348436127038579546",
+            "is_animated": true,
+            "file_size": 48361
+        },
+        {
+            "emoji": "🧳",
+            "set_name": "Topics",
+            "custom_emoji_id": "5357120306097956843",
+            "is_animated": true,
+            "file_size": 65107
+        },
+        {
+            "emoji": "🏖",
+            "set_name": "Topics",
+            "custom_emoji_id": "5310303848311562896",
+            "is_animated": true,
+            "file_size": 44636
+        },
+        {
+            "emoji": "⛅️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350424168615649565",
+            "is_animated": true,
+            "file_size": 5237
+        },
+        {
+            "emoji": "🦄",
+            "set_name": "Topics",
+            "custom_emoji_id": "5413625003218313783",
+            "is_animated": true,
+            "file_size": 58404
+        },
+        {
+            "emoji": "🛍",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350699789551935589",
+            "is_animated": true,
+            "file_size": 28336
+        },
+        {
+            "emoji": "👜",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377478880577724584",
+            "is_animated": true,
+            "file_size": 30945
+        },
+        {
+            "emoji": "🛒",
+            "set_name": "Topics",
+            "custom_emoji_id": "5431492767249342908",
+            "is_animated": true,
+            "file_size": 34619
+        },
+        {
+            "emoji": "🚂",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350497316203668441",
+            "is_animated": true,
+            "file_size": 19316
+        },
+        {
+            "emoji": "🛥",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350422527938141909",
+            "is_animated": true,
+            "file_size": 48140
+        },
+        {
+            "emoji": "🏔",
+            "set_name": "Topics",
+            "custom_emoji_id": "5418196338774907917",
+            "is_animated": true,
+            "file_size": 53447
+        },
+        {
+            "emoji": "🏕",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350648297189023928",
+            "is_animated": true,
+            "file_size": 21913
+        },
+        {
+            "emoji": "🤖",
+            "set_name": "Topics",
+            "custom_emoji_id": "5309832892262654231",
+            "is_animated": true,
+            "file_size": 30782
+        },
+        {
+            "emoji": "🪩",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350751634102166060",
+            "is_animated": true,
+            "file_size": 39899
+        },
+        {
+            "emoji": "🎟",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377624166436445368",
+            "is_animated": true,
+            "file_size": 64988
+        },
+        {
+            "emoji": "🏴‍☠️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5386395194029515402",
+            "is_animated": true,
+            "file_size": 64686
+        },
+        {
+            "emoji": "🗳",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350387571199319521",
+            "is_animated": true,
+            "file_size": 9156
+        },
+        {
+            "emoji": "🎓",
+            "set_name": "Topics",
+            "custom_emoji_id": "5357419403325481346",
+            "is_animated": true,
+            "file_size": 18558
+        },
+        {
+            "emoji": "🔭",
+            "set_name": "Topics",
+            "custom_emoji_id": "5368585403467048206",
+            "is_animated": true,
+            "file_size": 63588
+        },
+        {
+            "emoji": "🔬",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377580546748588396",
+            "is_animated": true,
+            "file_size": 61318
+        },
+        {
+            "emoji": "🎶",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377317729109811382",
+            "is_animated": true,
+            "file_size": 6654
+        },
+        {
+            "emoji": "🎤",
+            "set_name": "Topics",
+            "custom_emoji_id": "5382003830487523366",
+            "is_animated": true,
+            "file_size": 10952
+        },
+        {
+            "emoji": "🕺",
+            "set_name": "Topics",
+            "custom_emoji_id": "5357298525765902091",
+            "is_animated": true,
+            "file_size": 64779
+        },
+        {
+            "emoji": "💃",
+            "set_name": "Topics",
+            "custom_emoji_id": "5357370526597653193",
+            "is_animated": true,
+            "file_size": 65075
+        },
+        {
+            "emoji": "🪖",
+            "set_name": "Topics",
+            "custom_emoji_id": "5357188789351490453",
+            "is_animated": true,
+            "file_size": 14917
+        },
+        {
+            "emoji": "💼",
+            "set_name": "Topics",
+            "custom_emoji_id": "5348227245599105972",
+            "is_animated": true,
+            "file_size": 33321
+        },
+        {
+            "emoji": "🧪",
+            "set_name": "Topics",
+            "custom_emoji_id": "5411138633765757782",
+            "is_animated": true,
+            "file_size": 57715
+        },
+        {
+            "emoji": "👨‍👩‍👧‍👦",
+            "set_name": "Topics",
+            "custom_emoji_id": "5386435923204382258",
+            "is_animated": true,
+            "file_size": 33911
+        },
+        {
+            "emoji": "👶",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377675010259297233",
+            "is_animated": true,
+            "file_size": 29422
+        },
+        {
+            "emoji": "🤰",
+            "set_name": "Topics",
+            "custom_emoji_id": "5386609083400856174",
+            "is_animated": true,
+            "file_size": 24788
+        },
+        {
+            "emoji": "💅",
+            "set_name": "Topics",
+            "custom_emoji_id": "5368808634392257474",
+            "is_animated": true,
+            "file_size": 8177
+        },
+        {
+            "emoji": "🏛",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350548830041415279",
+            "is_animated": true,
+            "file_size": 17420
+        },
+        {
+            "emoji": "🧮",
+            "set_name": "Topics",
+            "custom_emoji_id": "5355127101970194557",
+            "is_animated": true,
+            "file_size": 15678
+        },
+        {
+            "emoji": "🖨",
+            "set_name": "Topics",
+            "custom_emoji_id": "5386379624773066504",
+            "is_animated": true,
+            "file_size": 11195
+        },
+        {
+            "emoji": "👮‍♂️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377494501373780436",
+            "is_animated": true,
+            "file_size": 55598
+        },
+        {
+            "emoji": "🩺",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350307998340226571",
+            "is_animated": true,
+            "file_size": 15772
+        },
+        {
+            "emoji": "💊",
+            "set_name": "Topics",
+            "custom_emoji_id": "5310094636159607472",
+            "is_animated": true,
+            "file_size": 7381
+        },
+        {
+            "emoji": "💉",
+            "set_name": "Topics",
+            "custom_emoji_id": "5310139157790596888",
+            "is_animated": true,
+            "file_size": 21392
+        },
+        {
+            "emoji": "🧼",
+            "set_name": "Topics",
+            "custom_emoji_id": "5377468357907849200",
+            "is_animated": true,
+            "file_size": 34463
+        },
+        {
+            "emoji": "🪪",
+            "set_name": "Topics",
+            "custom_emoji_id": "5418115271267197333",
+            "is_animated": true,
+            "file_size": 15485
+        },
+        {
+            "emoji": "🛃",
+            "set_name": "Topics",
+            "custom_emoji_id": "5372819184658949787",
+            "is_animated": true,
+            "file_size": 3965
+        },
+        {
+            "emoji": "🍽",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350344462612570293",
+            "is_animated": true,
+            "file_size": 21968
+        },
+        {
+            "emoji": "🐟",
+            "set_name": "Topics",
+            "custom_emoji_id": "5384574037701696503",
+            "is_animated": true,
+            "file_size": 33784
+        },
+        {
+            "emoji": "🎨",
+            "set_name": "Topics",
+            "custom_emoji_id": "5310039132297242441",
+            "is_animated": true,
+            "file_size": 65177
+        },
+        {
+            "emoji": "🎭",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350658016700013471",
+            "is_animated": true,
+            "file_size": 22363
+        },
+        {
+            "emoji": "🎩",
+            "set_name": "Topics",
+            "custom_emoji_id": "5357504778685392027",
+            "is_animated": true,
+            "file_size": 48369
+        },
+        {
+            "emoji": "🔮",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350367161514732241",
+            "is_animated": true,
+            "file_size": 32553
+        },
+        {
+            "emoji": "🍹",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350520238444126134",
+            "is_animated": true,
+            "file_size": 45045
+        },
+        {
+            "emoji": "🎂",
+            "set_name": "Topics",
+            "custom_emoji_id": "5310132165583840589",
+            "is_animated": true,
+            "file_size": 19679
+        },
+        {
+            "emoji": "☕️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350392020785437399",
+            "is_animated": true,
+            "file_size": 29528
+        },
+        {
+            "emoji": "🍣",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350406176997646350",
+            "is_animated": true,
+            "file_size": 60961
+        },
+        {
+            "emoji": "🍔",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350403544182694064",
+            "is_animated": true,
+            "file_size": 63971
+        },
+        {
+            "emoji": "🍕",
+            "set_name": "Topics",
+            "custom_emoji_id": "5350444672789519765",
+            "is_animated": true,
+            "file_size": 27517
+        },
+        {
+            "emoji": "🦠",
+            "set_name": "Topics",
+            "custom_emoji_id": "5312424913615723286",
+            "is_animated": true,
+            "file_size": 17581
+        },
+        {
+            "emoji": "💬",
+            "set_name": "Topics",
+            "custom_emoji_id": "5417915203100613993",
+            "is_animated": true,
+            "file_size": 2542
+        },
+        {
+            "emoji": "🎄",
+            "set_name": "Topics",
+            "custom_emoji_id": "5312054580060625569",
+            "is_animated": true,
+            "file_size": 28793
+        },
+        {
+            "emoji": "🎃",
+            "set_name": "Topics",
+            "custom_emoji_id": "5309744892677727325",
+            "is_animated": true,
+            "file_size": 65244
+        },
+        {
+            "emoji": "✍️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5238156910363950406",
+            "is_animated": true,
+            "file_size": 49974
+        },
+        {
+            "emoji": "⭐️",
+            "set_name": "Topics",
+            "custom_emoji_id": "5235579393115438657",
+            "is_animated": true,
+            "file_size": 13016
+        },
+        {
+            "emoji": "✅",
+            "set_name": "Topics",
+            "custom_emoji_id": "5237699328843200968",
+            "is_animated": true,
+            "file_size": 2281
+        },
+        {
+            "emoji": "🎖",
+            "set_name": "Topics",
+            "custom_emoji_id": "5238027455754680851",
+            "is_animated": true,
+            "file_size": 60243
+        },
+        {
+            "emoji": "🤡",
+            "set_name": "Topics",
+            "custom_emoji_id": "5238234236955148254",
+            "is_animated": true,
+            "file_size": 47913
+        },
+        {
+            "emoji": "🧠",
+            "set_name": "Topics",
+            "custom_emoji_id": "5237889595894414384",
+            "is_animated": true,
+            "file_size": 49686
+        },
+        {
+            "emoji": "🦮",
+            "set_name": "Topics",
+            "custom_emoji_id": "5237999392438371490",
+            "is_animated": true,
+            "file_size": 55069
+        },
+        {
+            "emoji": "🐈",
+            "set_name": "Topics",
+            "custom_emoji_id": "5235912661102773458",
+            "is_animated": true,
+            "file_size": 54153
+        }
+    ];
+    const container = document.getElementById('emoji-container');
+    emojiData.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'emoji-card';
+        card.innerHTML = `
+        <div class="emoji-preview">${item.emoji}</div>
+        <div class="emoji-info">
+          <p><span class="label">Символ:</span> <span class="value">${item.emoji}</span></p>
+          <p><span class="label">Название пакета:</span> <span class="value">${item.set_name || '—'}</span></p>
+          <p><span class="label">ID:</span> <span class="value emoji-id">${item.custom_emoji_id}</span></p>
+          <p><span class="label">Анимированный:</span> <span class="value">${item.is_animated ? 'Да' : 'Нет'}</span></p>
+          <p><span class="label">Размер:</span> <span class="value">${item.file_size} байт</span></p>
+        </div>
+      `;
+        container.appendChild(card);
+    });
+</script>
+</body>
+</html>
