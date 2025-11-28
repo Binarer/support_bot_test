@@ -2,7 +2,7 @@ import logging
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.enums import ChatType
-
+from App.Infrastructure.Config import config
 from App.Domain.Services.TicketService.ticket_service import TicketService
 
 logger = logging.getLogger(__name__)
@@ -31,18 +31,8 @@ class SupportProcessor:
                 logger.warning(f"Тикет для thread_id {thread_id} не найден")
                 return
 
-            support_message = message.text
-            if not support_message or support_message.strip() == "":
-                logger.info(f"Пропускаем пустое сообщение от поддержки в тикете {ticket.id}")
-                return
-
-            support_name = message.from_user.username or message.from_user.first_name
-
-            await self.ticket_service.process_support_message(
-                ticket.channel_message_id,
-                support_message,
-                support_name
-            )
+            # Check if this is a media message or text message
+            await self.ticket_service.process_support_topic_message(thread_id, message)
 
             logger.info(f"Обработано сообщение поддержки для тикета {ticket.id}")
 
