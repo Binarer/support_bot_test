@@ -1,6 +1,6 @@
 import os
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,6 +12,7 @@ class Config:
         self.TELEGRAM_ADMIN_IDS: List[int] = []
         self.SUPPORT_CHANNEL_ID: int = int(os.getenv('SUPPORT_CHANNEL_ID', '0'))
         self.GENERAL_TOPIC_ID: int = int(os.getenv('GENERAL_TOPIC_ID', '1'))  # Default to thread_id=1 if not set
+        self.REVIEWS_TOPIC_ID: Optional[int] = int(os.getenv('REVIEWS_TOPIC_ID', '0')) if os.getenv('REVIEWS_TOPIC_ID') else None
         self.LOG_LEVEL: str = os.getenv('LOG_LEVEL', 'INFO')
 
         # Database configuration

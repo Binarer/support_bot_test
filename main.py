@@ -17,18 +17,22 @@ from App.Domain.Services.RatingService.rating_service import RatingService
 from App.Domain.Services.MessageService.message_service import MessageService
 from App.Domain.Services.TicketService.ticket_service import TicketService
 from App.Domain.Services.CallbackService.callback_service import CallbackService
-from App.Infrastructure.Components.Http.longpoll_manager import LongpollManager
+from App.Infrastructure.Components.Http.websocket_manager import WebSocketManager
 from App.Domain.Services.TicketApplicationService.ticket_application_service import TicketApplicationService
 from App.Infrastructure.Components.Http.controllers.ticket_controller import TicketController
 from App.Infrastructure.Components.Http.controllers.rating_controller import RatingController
 from App.Domain.Models.TicketResponse.TicketResponse import TicketResponse
-from App.Domain.Models.UpdateResponse.UpdateResponse import UpdateResponse
 from App.Domain.Models.RatingRequest.RatingRequest import RatingRequest
 from App.Domain.Models.RatingResponse.RatingResponse import RatingResponse
 from App.Domain.Models.TicketStatusResponse.TicketStatusResponse import TicketStatusResponse
-from fastapi import Query
+from App.Domain.Models.MessageRequest.MessageRequest import MessageRequest
+from App.Domain.Models.MessageResponse.MessageResponse import MessageResponse
+from App.Domain.Models.CreateTicketRequest.CreateTicketRequest import CreateTicketRequest
+from App.Domain.Models.UpdateResponse.UpdateResponse import UpdateResponse
+from fastapi import Query, Path, WebSocket
 from App.Infrastructure.Models.database import init_db
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 logging.basicConfig(
@@ -53,15 +57,15 @@ bot_task = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Управление жизненным циклом приложения"""
-    global telegram_bot, ticket_service, rating_service, longpoll_manager, bot_task
+    global telegram_bot, ticket_service, rating_service, websocket_manager, bot_task
     
     try:
         logger.info("Инициализация сервисов...")
         
         init_db()
         
-        longpoll_manager = LongpollManager()
-        logger.info("LongpollManager создан")
+        websocket_manager = WebSocketManager()
+        logger.info("WebSocketManager создан")
         
         telegram_bot = TelegramBotClient()
         logger.info("Бот создан")
@@ -72,7 +76,7 @@ async def lifespan(app: FastAPI):
         balance_service = BalanceService()
         statistics_service = StatisticsService(telegram_bot.bot)
         rating_service = RatingService()
-        ticket_service = TicketService(channel_manager, longpoll_manager)
+        ticket_service = TicketService(channel_manager, websocket_manager)
         logger.info("TicketService создан")
         
         message_service = MessageService(ticket_service, statistics_service, rating_service, balance_service, telegram_bot.bot)
@@ -83,11 +87,11 @@ async def lifespan(app: FastAPI):
         telegram_bot.register_router(support_processor.router)
         telegram_bot.register_router(message_processor.router)
         
-        ticket_application_service = TicketApplicationService(ticket_service, rating_service, longpoll_manager)
+        ticket_application_service = TicketApplicationService(ticket_service, rating_service)
         ticket_controller = TicketController(ticket_application_service)
         rating_controller = RatingController(ticket_application_service)
         
-        @app.get(
+        @app.post(
             "/api/ticket/create",
             response_model=TicketResponse,
             tags=["Тикеты"],
@@ -95,30 +99,101 @@ async def lifespan(app: FastAPI):
             description="Создает новый тикет поддержки для пользователя"
         )
         async def create_ticket(
-            user_id: int = Query(..., description="ID пользователя", examples=[{"value": 123456789}]),
-            username: str = Query(..., description="Имя пользователя", examples=[{"value": "user123"}]),
-            message: str = Query(..., description="Сообщение пользователя", examples=[{"value": "Помогите с проблемой"}]),
-            category: str = Query("", description="Категория тикета", examples=[{"value": "technical"}])
+            ticket_request: CreateTicketRequest
         ):
             return await ticket_controller.create_ticket(
-                user_id=user_id,
-                username=username,
-                message=message,
-                category=category
+                user_id=ticket_request.user_id,
+                username=ticket_request.username,
+                message=ticket_request.message,
+                category=ticket_request.category
             )
         
-        @app.get(
-            "/api/ticket/{ticket_id}/updates",
-            response_model=UpdateResponse,
+        @app.post(
+            "/api/ticket/{ticket_id}/message",
+            response_model=MessageResponse,
             tags=["Тикеты"],
-            summary="Получить обновления тикета",
-            description="Longpoll endpoint для получения обновлений статуса тикета. Ожидает обновление статуса в течение указанного таймаута."
+            summary="Отправить сообщение в тикет",
+            description="""
+            Отправляет сообщение от пользователя в существующий тикет поддержки.
+
+            **Поддерживаемые типы:**
+            - Текстовые сообщения
+            - Медиа файлы (фото, видео, документы)
+
+            **Для медиа файлов:**
+            - Укажите media_type: "photo", "video", или "document"
+            - Предоставьте media_url с прямой ссылкой на файл
+            - Опционально добавьте media_caption
+
+            **Примеры использования:**
+            ```json
+            // Текстовое сообщение
+            {
+              "message": "У меня проблема с..."
+            }
+
+            // Сообщение с фото
+            {
+              "message": "Вот скриншот проблемы",
+              "media_type": "photo",
+              "media_url": "https://example.com/screenshot.jpg",
+              "media_caption": "Скриншот ошибки"
+            }
+            ```
+            """
         )
-        async def get_ticket_updates(
-            ticket_id: int,
-            timeout: int = Query(30, ge=1, le=120, description="Таймаут ожидания в секундах", examples=[{"value": 30}])
+        async def send_message_to_ticket(
+            ticket_id: int = Path(..., description="ID тикета", examples=[1]),
+            message_request: MessageRequest = ...
         ):
-            return await ticket_controller.get_ticket_updates(ticket_id, timeout)
+            return await ticket_controller.send_message_to_ticket(ticket_id, message_request)
+        
+        @app.websocket("/ws/ticket/{ticket_id}")
+        async def websocket_ticket_updates(
+            websocket: WebSocket,
+            ticket_id: int = Path(..., description="ID тикета для подключения", examples=[1])
+        ):
+            """
+            WebSocket endpoint для общения в реальном времени с тикетом поддержки.
+
+            **Подключение:**
+            1. Подключитесь к ws://localhost:8000/ws/ticket/{ticket_id}
+            2. Отправьте сообщение типа 'subscribe' с user_id и ticket_id
+            3. После подтверждения можно отправлять сообщения
+
+            **Исходящие сообщения (вы получаете):**
+            - `{"type": "connected", "message": "Подключение установлено"}` - Подтверждение подключения
+            - `{"type": "support_message", "message": "...", "support_name": "..."}` - Сообщения от поддержки
+            - `{"type": "support_media", "media_type": "...", "media_url": "..."}` - Медиа от поддержки
+            - `{"type": "update", "status": "..."}` - Обновления статуса тикета
+            - `{"type": "message_sent"}` - Подтверждение отправки вашего сообщения
+
+            **Входящие сообщения (вы отправляете):**
+            ```json
+            // Подписка
+            {
+              "type": "subscribe",
+              "ticket_id": 123,
+              "user_id": 456
+            }
+
+            // Текстовое сообщение
+            {
+              "type": "message",
+              "message": "Привет, нужна помощь"
+            }
+
+            // Медиа
+            {
+              "type": "media",
+              "media_type": "photo",
+              "media_url": "https://example.com/image.jpg",
+              "media_caption": "Скриншот проблемы",
+              "filename": "screenshot.jpg"
+            }
+            ```
+            """
+            await websocket_manager.handle_websocket(websocket, ticket_id)
         
         @app.post(
             "/api/ticket/{ticket_id}/rating",
@@ -128,8 +203,8 @@ async def lifespan(app: FastAPI):
             description="Отправляет оценку и опциональный комментарий для закрытого тикета"
         )
         async def submit_rating(
-            ticket_id: int,
-            rating_request: RatingRequest
+            ticket_id: int = Path(..., description="ID тикета", examples=[1]),
+            rating_request: RatingRequest = ...
         ):
             return await rating_controller.submit_rating(ticket_id, rating_request)
         
@@ -140,9 +215,23 @@ async def lifespan(app: FastAPI):
             summary="Получить статус тикета",
             description="Возвращает текущий статус и информацию о тикете"
         )
-        async def get_ticket_status(ticket_id: int):
+        async def get_ticket_status(
+            ticket_id: int = Path(..., description="ID тикета", examples=[1])
+        ):
             return await ticket_controller.get_ticket_status(ticket_id)
-        
+
+        @app.post(
+            "/api/ticket/{ticket_id}/close",
+            response_model=UpdateResponse,
+            tags=["Тикеты"],
+            summary="Закрыть тикет",
+            description="Закрывает существующий тикет поддержки"
+        )
+        async def close_ticket(
+            ticket_id: int = Path(..., description="ID тикета", examples=[1])
+        ):
+            return await ticket_controller.close_ticket(ticket_id)
+
         logger.info("HTTP API endpoints настроены")
         
         bot_task = asyncio.create_task(telegram_bot.start())
@@ -167,7 +256,7 @@ async def lifespan(app: FastAPI):
 async def main():
     """Основная функция запуска"""
     try:
-        logger.info("Запуск Support Bot с REST API...")
+        logger.info("Запуск Support Bot с API...")
         
         api_app = FastAPI(
             lifespan=lifespan,
@@ -178,7 +267,15 @@ async def main():
             redoc_url="/redoc",
             openapi_url="/openapi.json"
         )
-        
+
+        api_app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=False,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
         config_obj = uvicorn.Config(
             api_app,
             host="0.0.0.0",

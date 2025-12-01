@@ -182,7 +182,7 @@ class CallbackService:
 
     async def _handle_rename_ticket_callback(self, callback: CallbackQuery, state: FSMContext):
         try:
-            ticket_number = int(callback.data.split("_")[1])  # rename_{number}
+            ticket_number = int(callback.data.split("_")[1])
         except (IndexError, ValueError):
             await callback.answer("Неверный формат номера тикета", show_alert=True)
             return

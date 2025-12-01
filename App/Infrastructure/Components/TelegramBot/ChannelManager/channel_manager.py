@@ -14,8 +14,8 @@ class ChannelManager:
         self.bot = bot
         self.support_channel_id = config.SUPPORT_CHANNEL_ID
         self.general_topic_id = config.GENERAL_TOPIC_ID
-        self._reviews_topic_id: Optional[int] = None  # Кеш для ID топика "отзывы"
-        logger.info(f"ChannelManager инициализирован для канала: {self.support_channel_id}, general_topic_id: {self.general_topic_id}")
+        self._reviews_topic_id: Optional[int] = config.REVIEWS_TOPIC_ID  # Кеш для ID топика "отзывы"
+        logger.info(f"ChannelManager инициализирован для канала: {self.support_channel_id}, general_topic_id: {self.general_topic_id}, reviews_topic_id: {self._reviews_topic_id}")
 
     async def send_ticket_to_general(self, ticket: Ticket) -> int:
         logger.info(f"Отправка тикета {ticket.id} в общий топик")
@@ -225,11 +225,14 @@ class ChannelManager:
         try:
             await self.bot.send_message(
                 chat_id=user_id,
-                text=support_message
+                text=support_message,
+                parse_mode='HTML'
             )
             logger.info(f"Ответ поддержки отправлен пользователю {user_id}")
         except Exception as e:
-            logger.error(f"Ошибка отправки ответа пользователю: {e}")
+            logger.error(f"Ошибка отправки ответа пользователю {user_id}: {e}")
+            # Для веб-пользователей через long poll не пытаемся отправлять в Telegram
+            # Просто логируем ошибку и продолжаем работу
 
     async def send_support_media_reply(self, user_id: int, message):
         """Отправка медиа от поддержки пользователю"""
@@ -277,7 +280,6 @@ class ChannelManager:
             f"📝 {ticket.user_message}\n\n"
             f"⏰ Обновлен: {ticket.updated_at.strftime('%d.%m.%Y %H:%M')}\n"
             f"📌 Статус: {status_name} {icon}\n\n"
-            f"💬 Отправьте сообщение в этот топик чтобы ответить пользователю"
         )
 
         try:
@@ -370,12 +372,6 @@ class ChannelManager:
                 except Exception as e:
                     logger.error(f"Ошибка отправки инструкций пользователю {ticket.user_id}: {e}")
 
-            # Отправляем ссылку на топик админу
-            try:
-                await self._send_topic_link_to_admin(admin_id, ticket.topic_thread_id)
-            except Exception as e:
-                logger.warning(f"Не удалось отправить ссылку на топик админу: {e}")
-
             logger.info(f"Тикет {ticket.id} взят, топик создан, message_id: {menu_message.message_id}")
             return menu_message.message_id
         except Exception as e:
@@ -407,6 +403,31 @@ class ChannelManager:
         except Exception as e:
             logger.warning(f"Ошибка в close_ticket_by_user: {e}")
 
+    async def close_ticket_by_admin(self, ticket: Ticket):
+        """Обрабатывает обновления UI при закрытии тикета администратором"""
+        try:
+            await self._notify_ticket_closed_by_admin(ticket)
+        except Exception as e:
+            logger.warning(f"Не удалось уведомить о закрытии тикета #{ticket.display_id} администратором: {e}")
+
+        try:
+            await self.update_general_message(ticket, "✅ Закрыт администратором")
+        except Exception as e:
+            logger.warning(f"Не удалось обновить общее сообщение для тикета #{ticket.display_id}, закрытого администратором: {e}")
+
+        try:
+            if ticket.topic_thread_id:
+                try:
+                    await self.bot.close_forum_topic(
+                        chat_id=self.support_channel_id,
+                        message_thread_id=ticket.topic_thread_id
+                    )
+                except Exception as e:
+                    logger.warning(f"Не удалось закрыть топик форума: {e}")
+
+        except Exception as e:
+            logger.warning(f"Ошибка в close_ticket_by_admin: {e}")
+
     async def notify_ticket_cancelled(self, ticket: Ticket, cancelled_by_admin: bool):
         """Уведомляет команду поддержки об отмене тикета"""
         if cancelled_by_admin:
@@ -432,6 +453,22 @@ class ChannelManager:
         """Информирует сотрудников поддержки о закрытии тикета пользователем"""
         notification_text = (
             f"ℹ️ Пользователь @{ticket.username} закрыл тикет #{ticket.display_id} самостоятельно."
+        )
+
+        target_threads = []
+        if ticket.topic_thread_id:
+            target_threads.append(ticket.topic_thread_id)
+
+        general_thread_id = self.general_topic_id if self.general_topic_id and self.general_topic_id > 0 else None
+        if general_thread_id not in target_threads:
+            target_threads.append(general_thread_id)
+
+        await self._send_notification_to_threads(notification_text, target_threads)
+
+    async def _notify_ticket_closed_by_admin(self, ticket: Ticket):
+        """Информирует сотрудников поддержки о закрытии тикета администратором"""
+        notification_text = (
+            f"✅ Администратор закрыл тикет #{ticket.display_id} пользователя @{ticket.username}."
         )
 
         target_threads = []
@@ -538,17 +575,23 @@ class ChannelManager:
         if self._reviews_topic_id:
             return self._reviews_topic_id
 
-        try:
-            topic = await self.bot.create_forum_topic(
-                chat_id=self.support_channel_id,
-                name="отзывы"
-            )
-            self._reviews_topic_id = topic.message_thread_id
-            logger.info(f"Создан топик 'отзывы' с ID: {self._reviews_topic_id}")
-            return self._reviews_topic_id
-        except Exception as e:
-            logger.warning(f"Не удалось создать топик 'отзывы': {e}. Используем общий топик.")
-            return self.general_topic_id if self.general_topic_id else None
+        # Если REVIEWS_TOPIC_ID не задан в конфиге, создаем новый топик
+        if not config.REVIEWS_TOPIC_ID:
+            try:
+                topic = await self.bot.create_forum_topic(
+                    chat_id=self.support_channel_id,
+                    name="отзывы"
+                )
+                self._reviews_topic_id = topic.message_thread_id
+                logger.info(f"Создан топик 'отзывы' с ID: {self._reviews_topic_id}. Рекомендуется установить REVIEWS_TOPIC_ID={self._reviews_topic_id} в .env")
+                return self._reviews_topic_id
+            except Exception as e:
+                logger.warning(f"Не удалось создать топик 'отзывы': {e}. Используем общий топик.")
+                return self.general_topic_id if self.general_topic_id else None
+        else:
+            logger.info(f"Используем заданный REVIEWS_TOPIC_ID: {config.REVIEWS_TOPIC_ID}")
+            self._reviews_topic_id = config.REVIEWS_TOPIC_ID
+            return config.REVIEWS_TOPIC_ID
 
     async def send_rating_to_reviews_topic(self, ticket_display_id: int, username: str, rating: int, comment: Optional[str] = None):
         """Отправить отзыв в топик 'отзывы'"""

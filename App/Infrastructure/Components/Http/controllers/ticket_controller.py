@@ -3,8 +3,9 @@ from fastapi import HTTPException, Query
 
 from App.Domain.Services.TicketApplicationService.ticket_application_service import TicketApplicationService
 from App.Domain.Models.TicketResponse.TicketResponse import TicketResponse
-from App.Domain.Models.UpdateResponse.UpdateResponse import UpdateResponse
 from App.Domain.Models.TicketStatusResponse.TicketStatusResponse import TicketStatusResponse
+from App.Domain.Models.MessageRequest.MessageRequest import MessageRequest
+from App.Domain.Models.MessageResponse.MessageResponse import MessageResponse
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +16,10 @@ class TicketController:
 
     async def create_ticket(
         self,
-        user_id: int = Query(..., description="ID пользователя"),
-        username: str = Query(..., description="Имя пользователя"),
-        message: str = Query(..., description="Сообщение пользователя"),
-        category: str = Query("", description="Категория тикета")
+        user_id: int,
+        username: str,
+        message: str,
+        category: str = ""
     ) -> TicketResponse:
         try:
             return await self.ticket_application_service.create_ticket(
@@ -31,17 +32,6 @@ class TicketController:
             logger.error(f"Ошибка создания тикета через API: {e}")
             raise HTTPException(status_code=500, detail=f"Ошибка создания тикета: {str(e)}")
 
-    async def get_ticket_updates(
-        self,
-        ticket_id: int,
-        timeout: int = Query(30, ge=1, le=120, description="Таймаут ожидания в секундах")
-    ) -> UpdateResponse:
-        try:
-            return await self.ticket_application_service.get_ticket_updates(ticket_id, timeout)
-        except Exception as e:
-            logger.error(f"Ошибка получения обновлений тикета {ticket_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Ошибка получения обновлений: {str(e)}")
-
     async def get_ticket_status(self, ticket_id: int) -> TicketStatusResponse:
         try:
             return self.ticket_application_service.get_ticket_status(ticket_id)
@@ -52,3 +42,26 @@ class TicketController:
             logger.error(f"Ошибка получения статуса тикета {ticket_id}: {e}")
             raise HTTPException(status_code=500, detail=f"Ошибка получения статуса: {str(e)}")
 
+    async def send_message_to_ticket(
+        self,
+        ticket_id: int,
+        message_request: MessageRequest
+    ) -> MessageResponse:
+        try:
+            return await self.ticket_application_service.send_message_to_ticket(ticket_id, message_request)
+        except ValueError as e:
+            logger.error(f"Ошибка отправки сообщения в тикет {ticket_id}: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"Ошибка отправки сообщения в тикет {ticket_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Ошибка отправки сообщения: {str(e)}")
+
+    async def close_ticket(self, ticket_id: int):
+        try:
+            return await self.ticket_application_service.close_ticket(ticket_id)
+        except ValueError as e:
+            logger.error(f"Ошибка закрытия тикета {ticket_id}: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"Ошибка закрытия тикета {ticket_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Ошибка закрытия тикета: {str(e)}")

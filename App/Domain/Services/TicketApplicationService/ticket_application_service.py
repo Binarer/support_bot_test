@@ -5,10 +5,11 @@ from App.Domain.Services.TicketService.ticket_service import TicketService
 from App.Domain.Services.RatingService.rating_service import RatingService
 from App.Domain.Models.RatingRequest.RatingRequest import RatingRequest
 from App.Domain.Models.TicketResponse.TicketResponse import TicketResponse
-from App.Domain.Models.UpdateResponse.UpdateResponse import UpdateResponse
 from App.Domain.Models.TicketStatusResponse.TicketStatusResponse import TicketStatusResponse
 from App.Domain.Models.RatingResponse.RatingResponse import RatingResponse
-from App.Infrastructure.Components.Http.longpoll_manager import LongpollManager
+from App.Domain.Models.MessageRequest.MessageRequest import MessageRequest
+from App.Domain.Models.MessageResponse.MessageResponse import MessageResponse
+from App.Domain.Models.UpdateResponse.UpdateResponse import UpdateResponse
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +18,10 @@ class TicketApplicationService:
     def __init__(
         self,
         ticket_service: TicketService,
-        rating_service: RatingService,
-        longpoll_manager: LongpollManager
+        rating_service: RatingService
     ):
         self.ticket_service = ticket_service
         self.rating_service = rating_service
-        self.longpoll_manager = longpoll_manager
 
     async def create_ticket(
         self,
@@ -33,6 +32,7 @@ class TicketApplicationService:
     ) -> TicketResponse:
         from App.Infrastructure.Models.database import get_db
         from App.Infrastructure.Models import Ticket as TicketModelDB
+        from App.Domain.Services.TicketService.ticket_service import TicketService
 
         ticket = await self.ticket_service.create_ticket(
             user_id=user_id,
@@ -48,33 +48,23 @@ class TicketApplicationService:
         finally:
             db.close()
 
+        # Отправляем начальное сообщение с инструкциями через API (не через Telegram бота)
+        try:
+            user_instruction = self.ticket_service.channel_manager.config.bot_messages.get('user_instruction', '')
+            if user_instruction and self.ticket_service.websocket_manager:
+                await self.ticket_service.websocket_manager.send_support_message_to_client(
+                    ticket.db_id,
+                    user_instruction,
+                    "Система поддержки"
+                )
+        except Exception as e:
+            logger.warning(f"Не удалось отправить инструкции клиенту через websocket: {e}")
+
         return TicketResponse(
             ticket_id=ticket.db_id,
             display_id=ticket.display_id,
             status=status_str,
             message="Тикет успешно создан"
-        )
-
-    async def get_ticket_updates(
-        self,
-        ticket_id: int,
-        timeout: int = 30
-    ) -> UpdateResponse:
-        update = await self.longpoll_manager.wait_for_update(ticket_id, timeout=timeout)
-
-        if update is None:
-            return UpdateResponse(
-                ticket_id=ticket_id,
-                status="timeout",
-                message="Таймаут ожидания обновлений",
-                timestamp=datetime.now().isoformat()
-            )
-
-        return UpdateResponse(
-            ticket_id=update.ticket_id,
-            status=update.status,
-            message=update.message,
-            timestamp=update.timestamp.isoformat() if update.timestamp else None
         )
 
     async def submit_rating(
@@ -146,3 +136,52 @@ class TicketApplicationService:
         finally:
             db.close()
 
+    async def send_message_to_ticket(self, ticket_id: int, message_request: MessageRequest) -> MessageResponse:
+        """Отправить сообщение в тикет"""
+        try:
+            success = await self.ticket_service.send_message_to_ticket(ticket_id, message_request.message)
+            if success:
+                return MessageResponse(
+                    success=True,
+                    message="Сообщение успешно отправлено"
+                )
+            else:
+                return MessageResponse(
+                    success=False,
+                    message="Не удалось отправить сообщение"
+                )
+        except ValueError as e:
+            raise ValueError(str(e))
+        except Exception as e:
+            logger.error(f"Ошибка отправки сообщения в тикет {ticket_id}: {e}")
+            raise
+
+    async def close_ticket(self, ticket_id: int) -> UpdateResponse:
+        """Закрыть тикет по ID"""
+        try:
+            ticket = self.ticket_service.get_ticket_by_db_id(ticket_id)
+            if not ticket:
+                raise ValueError("Тикет не найден")
+
+            if ticket.status == "closed":
+                raise ValueError("Тикет уже закрыт")
+
+            if ticket.status == "cancelled":
+                raise ValueError("Тикет отменен")
+
+            success = await self.ticket_service.close_ticket_by_internal_id(ticket_id)
+            if success:
+                return UpdateResponse(
+                    success=True,
+                    message="Тикет успешно закрыт"
+                )
+            else:
+                return UpdateResponse(
+                    success=False,
+                    message="Не удалось закрыть тикет"
+                )
+        except ValueError as e:
+            raise ValueError(str(e))
+        except Exception as e:
+            logger.error(f"Ошибка закрытия тикета {ticket_id}: {e}")
+            raise Exception("Ошибка закрытия тикета")
