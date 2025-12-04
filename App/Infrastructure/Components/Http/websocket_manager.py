@@ -162,12 +162,17 @@ class WebSocketManager:
 
                 logger.info(f"WebSocket подключен для тикета {ticket_id}, пользователь {user_id}")
 
-                
-                await self._send_json(websocket, {
-                    "type": "connected",
-                    "ticket_id": ticket_id,
-                    "message": "Подключение установлено"
-                })
+                # Отправляем подтверждение подключения СРАЗУ после подписки
+                try:
+                    await self._send_json(websocket, {
+                        "type": "connected",
+                        "ticket_id": ticket_id,
+                        "message": "Подключение установлено"
+                    })
+                    logger.info(f"[DEBUG] Отправлено подтверждение подключения для ticket_id={ticket_id}")
+                except Exception as e:
+                    logger.error(f"[DEBUG] Ошибка отправки подтверждения для ticket_id={ticket_id}: {e}")
+                    raise
                 
                 
                 while True:
