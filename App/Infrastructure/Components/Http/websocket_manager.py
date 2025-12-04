@@ -350,10 +350,10 @@ class WebSocketManager:
                     message_thread_id=ticket.topic_thread_id
                 )
 
-            logger.info(f"Медиа {filename} типа {media_type} отправлено в топик тикета 
+            logger.info(f"Медиа {filename} типа {media_type} отправлено в топик тикета")
             print(f"DEBUG: Медиа {filename} отправлено в Telegram как {media_type}")
 
-            
+            # Обновить иконку топика
             if ticket.status == "in_progress":
                 await ticket_service.channel_manager.update_topic_icon(ticket, "❓")
 

@@ -21,22 +21,6 @@ services:
     networks:
       - ticketbot_network
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: ticketbot_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@ticketbot.local
-      PGADMIN_DEFAULT_PASSWORD: admin123
-    ports:
-      - "8080:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    restart: unless-stopped
-    depends_on:
-      - postgres
-    networks:
-      - ticketbot_network
-
   bot:
     build: .
     container_name: ticketbot_app
@@ -58,8 +42,6 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
-  pgadmin_data:
     driver: local
 
 networks:

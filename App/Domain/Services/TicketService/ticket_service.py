@@ -39,7 +39,8 @@ class TicketService:
                     category=db_ticket.category,
                     status=db_ticket.status,
                     channel_message_id=db_ticket.channel_message_id,
-                    topic_thread_id=db_ticket.topic_thread_id
+                    topic_thread_id=db_ticket.topic_thread_id,
+                    is_renaming=False
                 )
 
                 self.active_tickets[ticket.user_id] = ticket
@@ -82,7 +83,8 @@ class TicketService:
                 user_id=user_id,
                 username=username,
                 user_message=user_message,
-                category=category
+                category=category,
+                is_renaming=False
             )
         finally:
             db.close()
@@ -151,7 +153,8 @@ class TicketService:
                 user_message=db_ticket.user_message,
                 category=db_ticket.category,
                 status=db_ticket.status,
-                channel_message_id=db_ticket.channel_message_id
+                channel_message_id=db_ticket.channel_message_id,
+                is_renaming=False
             )
 
             try:
@@ -196,6 +199,11 @@ class TicketService:
         ticket = self.get_ticket_by_thread_id(thread_id)
         if not ticket:
             logger.warning(f"Тикет для thread_id {thread_id} не найден")
+            return
+
+        # Пропустить сообщения, если идет переименование
+        if ticket.is_renaming:
+            logger.info(f"Сообщение в топике {thread_id} пропущено (идет переименование тикета)")
             return
 
         support_name = message.from_user.username or message.from_user.first_name or f"user_{message.from_user.id}"
@@ -282,6 +290,11 @@ class TicketService:
 
         ticket = self.active_tickets[user_id]
 
+        # Пропустить сообщение, если идет переименование
+        if ticket.is_renaming:
+            logger.info(f"Сообщение от пользователя {user_id} пропущено (идет переименование тикета)")
+            return False
+
         if ticket.status == "in_progress":
             await self.channel_manager.send_user_message(ticket, message_text)
             await self.channel_manager.update_topic_icon(ticket, "❓")
@@ -315,6 +328,11 @@ class TicketService:
             raise ValueError("У пользователя нет активного тикета")
 
         ticket = self.active_tickets[user_id]
+
+        # Пропустить медиа, если идет переименование
+        if ticket.is_renaming:
+            logger.info(f"Медиа от пользователя {user_id} пропущено (идет переименование тикета)")
+            return False
 
         if ticket.status == "in_progress":
             await self.channel_manager.send_user_media(ticket, message)
@@ -373,7 +391,8 @@ class TicketService:
                 category=db_ticket.category or "",
                 status=db_ticket.status,
                 channel_message_id=db_ticket.channel_message_id,
-                topic_thread_id=db_ticket.topic_thread_id
+                topic_thread_id=db_ticket.topic_thread_id,
+                is_renaming=False
             )
             return ticket
         finally:
@@ -384,6 +403,11 @@ class TicketService:
         ticket = self.get_ticket_by_db_id(ticket_id)
         if not ticket:
             raise ValueError("Тикет не найден")
+        
+        # Пропустить сообщение, если идет переименование
+        if ticket.is_renaming:
+            logger.info(f"Сообщение для тикета {ticket_id} пропущено (идет переименование)")
+            return False
         
         if ticket.status not in ["pending", "in_progress"]:
             raise ValueError("Тикет закрыт или отменен, нельзя отправить сообщение")
@@ -448,7 +472,8 @@ class TicketService:
                     category=db_ticket.category or "",
                     status=db_ticket.status,
                     channel_message_id=db_ticket.channel_message_id,
-                    topic_thread_id=db_ticket.topic_thread_id
+                    topic_thread_id=db_ticket.topic_thread_id,
+                    is_renaming=False
                 )
 
             try:
@@ -665,3 +690,23 @@ class TicketService:
                 logger.info("Отправлено текстовое уведомление вместо медиа")
             except Exception as fallback_error:
                 logger.error(f"Ошибка отправки fallback уведомления: {fallback_error}")
+
+    async def rename_ticket(self, ticket_db_id: int, new_name: str) -> bool:
+        """Переименовать топик тикета"""
+        ticket = self.get_ticket_by_db_id(ticket_db_id)
+        if not ticket:
+            logger.warning(f"Тикет с db_id {ticket_db_id} не найден")
+            return False
+        ticket.is_renaming = True
+        
+        try:
+            success = await self.channel_manager.rename_topic(ticket, new_name)
+            
+            if success:
+                logger.info(f"Тикет {ticket_db_id} успешно переименован на '{new_name}'")
+                return True
+            else:
+                logger.warning(f"Не удалось переименовать топик тикета {ticket_db_id}")
+                return False
+        finally:
+            ticket.is_renaming = False

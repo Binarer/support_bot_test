@@ -26,6 +26,7 @@ class Ticket:
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     closed_by: Optional[str] = None
+    is_renaming: bool = False
 
     def __post_init__(self):
         """Инициализация после создания датакласса."""

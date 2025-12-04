@@ -51,7 +51,7 @@ class MessageService:
 
                 success = await self.ticket_service.rename_ticket(rename_ticket_id, text.strip())
                 if success:
-                    await message.answer(f"✅ Тикет 
+                    await message.answer(f"✅ Тикет #{rename_ticket_id} переименован на: {text.strip()}")
                 else:
                     await message.answer("❌ Не удалось переименовать тикет")
 
@@ -59,6 +59,7 @@ class MessageService:
             except Exception as e:
                 await message.answer("❌ Ошибка при переименовании тикета")
                 logger.error(f"Ошибка переименования тикета {rename_ticket_id}: {e}")
+                await state.clear()
         elif current_state == TicketStates.waiting_for_rating_comment:
             state_data = await state.get_data()
             ticket_number = state_data.get("rating_ticket")
