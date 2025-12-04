@@ -171,7 +171,7 @@ class StatisticsService:
                 color = '#f0f0f0'
                 for j in range(len(col_labels)):
                     table[(i, j)].set_facecolor(color)
-                    table[(i, j)].set_text_props(color='white')
+                    table[(i, j)].set_text_props(color='black')
 
             buf = io.BytesIO()
             plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='black')

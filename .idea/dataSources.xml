@@ -8,5 +8,12 @@
       <jdbc-url>jdbc:postgresql://localhost:15432/ticketbot_utf8</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="ticketbot_utf8@155.212.218.54" uuid="109a7a37-9a9e-4e7b-b771-3870fb3e48d8">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://155.212.218.54:5432/ticketbot_utf8</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

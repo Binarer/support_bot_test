@@ -29,6 +29,8 @@ class MessageService:
             await self._handle_stat(message, command)
         elif command == '/help':
             await self._handle_help(message)
+        elif command == '/clear':
+            await self._handle_clear(message)
         elif command == '/close':
             await self._handle_close(message, state)
         elif command == '/balance':
@@ -223,7 +225,7 @@ class MessageService:
 
     async def _handle_help(self, message: Message):
         if self._is_admin(message.from_user.id):
-            help_text = "📖 <b>Памятка по работе с ботом поддержки</b>\n\n"
+            help_text = "<b>Памятка</b>\n\n"
             help_text += "🤖 <b>Основные команды:</b>\n"
             help_text += "• /start - начать работу с ботом\n"
             help_text += "• /menu - открыть меню (только для админов)\n"
@@ -298,6 +300,66 @@ class MessageService:
         admin_id = message.from_user.id
         balance = self.balance_service.get_admin_balance(admin_id)
         await message.answer(f"💰 Ваш баланс: <b>{balance:.2f}</b> ₽", parse_mode="HTML")
+
+    async def _handle_clear(self, message: Message):
+        """Обработчик команды /clear - очищает все сообщения в топике"""
+        if not self._is_admin(message.from_user.id):
+            await message.answer("❌ Только администраторы могут использовать эту команду.")
+            return
+
+        chat_id = message.chat.id
+        thread_id = getattr(message, 'message_thread_id', None)
+
+        if not thread_id or chat_id == thread_id:
+            await message.answer("❌ Эта команда работает только в топиках (темах).")
+            return
+
+        try:
+            # Получаем список сообщений из топика
+            messages_to_delete = []
+            offset_id = 0
+
+            while True:
+                # Получаем пакет сообщений из топика
+                chat_messages = await self.bot.get_chat_history(
+                    chat_id=chat_id,
+                    offset=offset_id,
+                    limit=100,
+                    reply_to_message_id=None
+                )
+
+                # Фильтруем только сообщения из этого топика
+                thread_messages = [
+                    msg for msg in chat_messages
+                    if getattr(msg, 'message_thread_id', None) == thread_id or msg.message_id == thread_id
+                ]
+
+                if not thread_messages:
+                    break
+
+                messages_to_delete.extend(thread_messages)
+                offset_id = thread_messages[-1].message_id
+
+                if len(chat_messages) < 100:
+                    break
+
+            # Удаляем сообщения (не удаляем системные и служебные)
+            deleted_count = 0
+            for msg in messages_to_delete:
+                if hasattr(msg, 'from_user') and msg.from_user:  # Исключаем системные сообщения
+                    try:
+                        await self.bot.delete_message(chat_id, msg.message_id)
+                        deleted_count += 1
+                    except Exception as e:
+                        logger.warning(f"Не удалось удалить сообщение {msg.message_id}: {e}")
+                        continue
+
+            success_text = config.bot_messages.get('clear_success', '🧹 Чат очищен. Удалено сообщений: {deleted_count}')
+            await message.answer(success_text.format(deleted_count=deleted_count))
+
+        except Exception as e:
+            await message.answer("❌ Ошибка при очистке чата.")
+            logger.error(f"Ошибка очистки чата от администратора {message.from_user.id}: {e}")
 
     async def _handle_close(self, message: Message, state: FSMContext):
         user_id = message.from_user.id

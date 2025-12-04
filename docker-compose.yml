@@ -37,6 +37,7 @@ services:
         condition: service_healthy
     volumes:
       - ./bot.log:/app/bot.log
+      - ./logs:/app/logs
     networks:
       - ticketbot_network
 

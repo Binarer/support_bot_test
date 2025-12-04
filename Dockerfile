@@ -17,5 +17,5 @@ COPY . .
 # Создание директории для логов
 RUN mkdir -p /app/logs
 
-# Запуск приложения
-CMD ["python", "main.py"]
+# Запуск автоматической миграции базы данных перед запуском приложения
+CMD ["sh", "-c", "alembic upgrade head && python main.py"]

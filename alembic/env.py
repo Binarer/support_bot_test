@@ -30,7 +30,9 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    url = "postgresql://botuser:123123123@localhost:15432/ticketbot_utf8"
+    """Run migrations in 'offline' mode - generates SQL scripts without connecting to DB"""
+    # Use environment variables for consistency, fallback to localhost for development
+    url = f"postgresql://{os.getenv('DB_USER', 'botuser')}:{os.getenv('DB_PASSWORD', '123123123')}@{os.getenv('DB_HOST', 'localhost')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME', 'ticketbot_utf8')}"
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -50,7 +52,7 @@ def run_migrations_online() -> None:
 
     """
     # Get database URL from environment variables
-    db_url = f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:15432/{os.getenv('DB_NAME')}"
+    db_url = f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME')}"
 
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),

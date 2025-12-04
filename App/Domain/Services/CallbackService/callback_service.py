@@ -295,7 +295,7 @@ class CallbackService:
 
     async def _handle_show_help_memo_callback(self, callback: CallbackQuery):
         await callback.answer()
-        help_text = "📖 <b>Памятка по работе с ботом поддержки</b>\n\n"
+        help_text = "<b>Памятка</b>\n\n"
         help_text += "🤖 <b>Основные команды:</b>\n"
         help_text += "• /start - начать работу с ботом\n"
         help_text += "• /menu - открыть меню (только для админов)\n"
