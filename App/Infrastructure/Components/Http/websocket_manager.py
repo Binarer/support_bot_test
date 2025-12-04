@@ -97,45 +97,14 @@ class WebSocketManager:
         try:
             # Попытаться получить subscribe сообщение с таймаутом
             import asyncio
+
+            # Не используем автоподписку - ждем правильного subscribe сообщения
             try:
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
                 logger.info(f"[DEBUG] Получено сообщение: {data[:100]}")
             except asyncio.TimeoutError:
-                logger.warning(f"[DEBUG] Таймаут при получении subscribe для ticket_id={ticket_id} - подписываем автоматически")
-                # Если клиент не отправил subscribe за 5 секунд, подписываем его автоматически
-                if ticket_id not in self._active_connections:
-                    self._active_connections[ticket_id] = set()
-                self._active_connections[ticket_id].add(websocket)
-                self._connection_info[websocket] = (ticket_id, 0)  # user_id=0 для анонимного клиента
-                
-                await self._send_json(websocket, {
-                    "type": "connected",
-                    "ticket_id": ticket_id,
-                    "message": "Подключение установлено (автоподписка)"
-                })
-                
-                # Слушаем дальше
-                while True:
-                    try:
-                        data = await websocket.receive_text()
-                        message = json.loads(data)
-                        
-                        if message.get("type") == "ping":
-                            await self._send_json(websocket, {
-                                "type": "pong",
-                                "ticket_id": ticket_id
-                            })
-                        elif message.get("type") == "message":
-                            await self._handle_client_message(ticket_id, 0, message)
-                        elif message.get("type") == "media":
-                            await self._handle_client_media(ticket_id, 0, message)
-                    except WebSocketDisconnect:
-                        break
-                    except json.JSONDecodeError:
-                        await self._send_json(websocket, {
-                            "type": "error",
-                            "message": "Неверный формат JSON"
-                        })
+                logger.warning(f"[DEBUG] Таймаут при получении subscribe для ticket_id={ticket_id} - отключаем WebSocket")
+                await websocket.close()
                 return
             
             # Если получили данные - обрабатываем как subscribe
@@ -401,18 +370,22 @@ class WebSocketManager:
             print(f"DEBUG: Ошибка отправки медиа: {e}")
             raise
 
-    async def _send_json_by_ticket(self, ticket_id: int, data: dict):
-        """Отправить JSON сообщение всем websocket соединениям тикета"""
+    async def _send_json_by_ticket(self, ticket_id: int, data: dict) -> int:
+        """Отправить JSON сообщение всем websocket соединениям тикета
+        Возвращает количество успешных отправок"""
         if ticket_id not in self._active_connections:
             logger.debug(f"_send_json_by_ticket: нет подключений для ticket_id={ticket_id}")
-            return
+            return 0
 
         connections = self._active_connections[ticket_id].copy()
         logger.info(f"_send_json_by_ticket: отправка сообщения type={data.get('type')} для ticket_id={ticket_id} в {len(connections)} соединений")
         disconnected = []
+        successful_sends = 0
+
         for websocket in connections:
             try:
                 await self._send_json(websocket, data)
+                successful_sends += 1
                 logger.debug(f"Сообщение отправлено через WebSocket для ticket_id={ticket_id}")
             except Exception as e:
                 logger.warning(f"Ошибка отправки JSON через WebSocket для ticket_id={ticket_id}: {e}")
@@ -424,16 +397,23 @@ class WebSocketManager:
             except Exception:
                 pass
 
+        return successful_sends
+
     async def send_support_message_to_client(self, ticket_id: int, message_text: str, support_name: str):
         """Отправить текстовое сообщение поддержки клиенту через websocket"""
         logger.info(f"send_support_message_to_client called for ticket_id={ticket_id} support_name={support_name}")
-        message_data = {
+
+        result = await self._send_json_by_ticket(ticket_id, {
             "type": "support_message",
             "message": message_text,
             "support_name": support_name,
             "timestamp": str(datetime.now())
-        }
-        await self._send_json_by_ticket(ticket_id, message_data)
+        })
+
+        if result == 0:  # Нет активных соединений
+            logger.warning(f"Нет активных WebSocket соединений для отправки сообщения поддержки в тикет {ticket_id}")
+        else:
+            logger.info(f"Сообщение поддержки отправлено через {result} WebSocket соединений для тикета {ticket_id}")
 
     async def send_support_media_to_client(self, ticket_id: int, media_type: str, media_url: str, filename: str, caption: str, support_name: str):
         """Отправить медиа поддержки клиенту через websocket"""
