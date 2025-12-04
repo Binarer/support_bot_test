@@ -92,14 +92,53 @@ class WebSocketManager:
         """Обработать WebSocket соединение"""
         
         await websocket.accept()
+        logger.info(f"[DEBUG] WebSocket принял соединение для ticket_id={ticket_id}")
         
         try:
-            
+            # Попытаться получить subscribe сообщение с таймаутом
+            import asyncio
             try:
-                data = await websocket.receive_text()
-            except WebSocketDisconnect:
-                logger.info(f"WebSocket отключен до получения сообщения подписки для тикета {ticket_id}")
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+                logger.info(f"[DEBUG] Получено сообщение: {data[:100]}")
+            except asyncio.TimeoutError:
+                logger.warning(f"[DEBUG] Таймаут при получении subscribe для ticket_id={ticket_id} - подписываем автоматически")
+                # Если клиент не отправил subscribe за 5 секунд, подписываем его автоматически
+                if ticket_id not in self._active_connections:
+                    self._active_connections[ticket_id] = set()
+                self._active_connections[ticket_id].add(websocket)
+                self._connection_info[websocket] = (ticket_id, 0)  # user_id=0 для анонимного клиента
+                
+                await self._send_json(websocket, {
+                    "type": "connected",
+                    "ticket_id": ticket_id,
+                    "message": "Подключение установлено (автоподписка)"
+                })
+                
+                # Слушаем дальше
+                while True:
+                    try:
+                        data = await websocket.receive_text()
+                        message = json.loads(data)
+                        
+                        if message.get("type") == "ping":
+                            await self._send_json(websocket, {
+                                "type": "pong",
+                                "ticket_id": ticket_id
+                            })
+                        elif message.get("type") == "message":
+                            await self._handle_client_message(ticket_id, 0, message)
+                        elif message.get("type") == "media":
+                            await self._handle_client_media(ticket_id, 0, message)
+                    except WebSocketDisconnect:
+                        break
+                    except json.JSONDecodeError:
+                        await self._send_json(websocket, {
+                            "type": "error",
+                            "message": "Неверный формат JSON"
+                        })
                 return
+            
+            # Если получили данные - обрабатываем как subscribe
             try:
                 message = json.loads(data)
                 if message.get("type") != "subscribe":
