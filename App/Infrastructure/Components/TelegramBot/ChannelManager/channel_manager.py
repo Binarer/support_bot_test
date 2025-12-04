@@ -235,9 +235,10 @@ class ChannelManager:
             )
             logger.info(f"Ответ поддержки отправлен пользователю {user_id}")
         except Exception as e:
-            logger.warning(f"Не удалось отправить ответ пользователю {user_id} (возможно веб-пользователь): {e}")
-            
-            
+            if "chat not found" in str(e).lower():
+                logger.info(f"Пользователь {user_id} не найден в Telegram (возможно веб-пользователь или заблокировал бота)")
+            else:
+                logger.warning(f"Не удалось отправить ответ пользователю {user_id}: {e}")
 
     def _is_valid_telegram_chat_id(self, user_id: int) -> bool:
         """Проверяет, является ли user_id валидным Telegram chat_id"""
@@ -267,9 +268,10 @@ class ChannelManager:
             )
             logger.info(f"Медиа поддержки отправлено пользователю {user_id}")
         except Exception as e:
-            logger.warning(f"Не удалось отправить медиа пользователю {user_id} (возможно веб-пользователь): {e}")
-            
-            
+            if "chat not found" in str(e).lower():
+                logger.info(f"Пользователь {user_id} не найден в Telegram (возможно веб-пользователь или заблокировал бота)")
+            else:
+                logger.warning(f"Не удалось отправить медиа пользователю {user_id}: {e}")
 
     async def rename_topic(self, ticket: Ticket, new_name: str) -> bool:
         try:
@@ -325,7 +327,11 @@ class ChannelManager:
             )
             logger.info(f"Топик тикета {ticket.id} обновлен")
         except Exception as e:
-            logger.error(f"Ошибка обновления топика тикета: {e}")
+            error_msg = str(e).lower()
+            if "not modified" in error_msg or "message is not modified" in error_msg:
+                logger.debug(f"Содержимое сообщения тикета {ticket.id} не изменилось, пропуск обновления")
+            else:
+                logger.warning(f"Ошибка обновления топика тикета {ticket.id}: {e}")
     
     async def take_ticket_and_create_topic(self, ticket: Ticket, admin_id: int, admin_name: str) -> int:
         logger.info(f"Взятие тикета {ticket.id} администратором {admin_name}")

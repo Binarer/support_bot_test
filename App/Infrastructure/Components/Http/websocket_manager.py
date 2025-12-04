@@ -365,17 +365,29 @@ class WebSocketManager:
     async def _send_json_by_ticket(self, ticket_id: int, data: dict):
         """Отправить JSON сообщение всем websocket соединениям тикета"""
         if ticket_id not in self._active_connections:
+            logger.debug(f"_send_json_by_ticket: нет подключений для ticket_id={ticket_id}")
             return
 
         connections = self._active_connections[ticket_id].copy()
+        logger.info(f"_send_json_by_ticket: отправка сообщения type={data.get('type')} для ticket_id={ticket_id} в {len(connections)} соединений")
+        disconnected = []
         for websocket in connections:
             try:
                 await self._send_json(websocket, data)
+                logger.debug(f"Сообщение отправлено через WebSocket для ticket_id={ticket_id}")
             except Exception as e:
-                logger.warning(f"Ошибка отправки JSON через WebSocket: {e}")
+                logger.warning(f"Ошибка отправки JSON через WebSocket для ticket_id={ticket_id}: {e}")
+                disconnected.append(websocket)
+
+        for websocket in disconnected:
+            try:
+                await self.disconnect(websocket)
+            except Exception:
+                pass
 
     async def send_support_message_to_client(self, ticket_id: int, message_text: str, support_name: str):
         """Отправить текстовое сообщение поддержки клиенту через websocket"""
+        logger.info(f"send_support_message_to_client called for ticket_id={ticket_id} support_name={support_name}")
         message_data = {
             "type": "support_message",
             "message": message_text,
