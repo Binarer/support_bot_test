@@ -62,7 +62,7 @@ class SupportProcessor:
             ticket = self.ticket_service.get_ticket_by_thread_id(thread_id)
 
             if not ticket:
-                logger.warning(f"Тикет для thread_id {thread_id} не найден")
+                logger.warning(f"[DEBUG] Тикет для thread_id {thread_id} не найден. Доступные thread_ids: {list(self.ticket_service.ticket_by_thread_id.keys())}")
                 return
 
             await self.ticket_service.process_support_topic_message(thread_id, message)

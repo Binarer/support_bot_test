@@ -91,20 +91,36 @@ class WebSocketManager:
     async def handle_websocket(self, websocket: WebSocket, ticket_id: int):
         """Обработать WebSocket соединение"""
         
-        await websocket.accept()
-        logger.info(f"[DEBUG] WebSocket принял соединение для ticket_id={ticket_id}")
+        try:
+            await websocket.accept()
+            logger.info(f"[DEBUG] WebSocket принял соединение для ticket_id={ticket_id}")
+        except Exception as e:
+            logger.error(f"[DEBUG] Ошибка при принятии WebSocket соединения для ticket_id={ticket_id}: {e}")
+            return
         
         try:
             # Попытаться получить subscribe сообщение с таймаутом
             import asyncio
 
             # Не используем автоподписку - ждем правильного subscribe сообщения
+            # Увеличиваем таймаут до 30 секунд для медленных соединений
             try:
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
-                logger.info(f"[DEBUG] Получено сообщение: {data[:100]}")
+                logger.info(f"[DEBUG] Ожидание subscribe сообщения для ticket_id={ticket_id}")
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                logger.info(f"[DEBUG] Получено сообщение для ticket_id={ticket_id}: {data[:200]}")
             except asyncio.TimeoutError:
                 logger.warning(f"[DEBUG] Таймаут при получении subscribe для ticket_id={ticket_id} - отключаем WebSocket")
-                await websocket.close()
+                try:
+                    await websocket.close(code=1008, reason="Timeout waiting for subscribe message")
+                except:
+                    pass
+                return
+            except Exception as e:
+                logger.error(f"[DEBUG] Ошибка при получении subscribe для ticket_id={ticket_id}: {e}")
+                try:
+                    await websocket.close(code=1011, reason=f"Error receiving message: {str(e)}")
+                except:
+                    pass
                 return
             
             # Если получили данные - обрабатываем как subscribe
@@ -180,17 +196,26 @@ class WebSocketManager:
                             "message": "Неверный формат JSON"
                         })
                         
-            except json.JSONDecodeError:
-                await self._send_json(websocket, {
-                    "type": "error",
-                    "message": "Неверный формат JSON в сообщении подписки"
-                })
-                await websocket.close()
+            except json.JSONDecodeError as json_err:
+                logger.error(f"[DEBUG] Ошибка парсинга JSON для ticket_id={ticket_id}: {json_err}, данные: {data[:200] if 'data' in locals() else 'N/A'}")
+                try:
+                    await self._send_json(websocket, {
+                        "type": "error",
+                        "message": "Неверный формат JSON в сообщении подписки"
+                    })
+                    await websocket.close(code=1003, reason="Invalid JSON format")
+                except:
+                    pass
+                return
                 
         except WebSocketDisconnect:
-            logger.info(f"WebSocket отключен для тикета {ticket_id}")
+            logger.info(f"WebSocket отключен клиентом для тикета {ticket_id}")
         except Exception as e:
             logger.error(f"Ошибка обработки WebSocket для тикета {ticket_id}: {e}", exc_info=True)
+            try:
+                await websocket.close(code=1011, reason=f"Server error: {str(e)}")
+            except:
+                pass
         finally:
             await self.disconnect(websocket)
 
