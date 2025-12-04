@@ -63,5 +63,4 @@ python main.py
 ```
 
 ## Контакты
-dev by
-https://t.me/@wasitfallen
+https://t.me/wasitfallen
