@@ -42,24 +42,35 @@ class MessageService:
 
         state_data = await state.get_data()
         rename_ticket_id = state_data.get('rename_ticket_id')
+        rename_admin_id = state_data.get('rename_admin_id')
 
         if rename_ticket_id is not None:
-            try:
-                if text.strip() == "":
-                    await message.answer("❌ Название не может быть пустым")
-                    return
+            # Проверяем, что только администратор, запросивший переименование, может дать имя
+            if not self._is_admin(user_id):
+                await message.answer("❌ Только администратор, запросивший переименование, может указать новое имя")
+                logger.warning(f"Пользователь {user_id} попытался переименовать тикет, хотя не является администратором")
+                return
+            elif rename_admin_id is not None and user_id != rename_admin_id:
+                await message.answer("❌ Вы не можете переименовать этот тикет, так как запросили это не вы")
+                logger.warning(f"Администратор {user_id} попытался переименовать тикет {rename_ticket_id}, хотя запросил другой администратор {rename_admin_id}")
+                return
+            else:
+                try:
+                    if text.strip() == "":
+                        await message.answer("❌ Название не может быть пустым")
+                        return
 
-                success = await self.ticket_service.rename_ticket(rename_ticket_id, text.strip())
-                if success:
-                    await message.answer(f"✅ Тикет #{rename_ticket_id} переименован на: {text.strip()}")
-                else:
-                    await message.answer("❌ Не удалось переименовать тикет")
+                    success = await self.ticket_service.rename_ticket(rename_ticket_id, text.strip())
+                    if success:
+                        await message.answer(f"✅ Тикет #{rename_ticket_id} переименован на: {text.strip()}")
+                    else:
+                        await message.answer("❌ Не удалось переименовать тикет")
 
-                await state.clear()
-            except Exception as e:
-                await message.answer("❌ Ошибка при переименовании тикета")
-                logger.error(f"Ошибка переименования тикета {rename_ticket_id}: {e}")
-                await state.clear()
+                    await state.clear()
+                except Exception as e:
+                    await message.answer("❌ Ошибка при переименовании тикета")
+                    logger.error(f"Ошибка переименования тикета {rename_ticket_id}: {e}")
+                    await state.clear()
         elif current_state == TicketStates.waiting_for_rating_comment:
             state_data = await state.get_data()
             ticket_number = state_data.get("rating_ticket")

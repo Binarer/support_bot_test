@@ -148,10 +148,28 @@ class CallbackService:
 
         success = await self.ticket_service.close_ticket_by_internal_id(ticket_db_id, admin_id)
         if success:
-            amount = 50.0
-            new_balance = self.balance_service.add_balance(admin_id, amount)
+            # Получаем категорию тикета для проверки
+            from App.Infrastructure.Models.database import get_db
+            from App.Infrastructure.Models import Ticket as TicketModelDB
+            db = get_db()
+            try:
+                ticket_record = db.query(TicketModelDB).filter(TicketModelDB.id == ticket_db_id).first()
+                ticket_category = ticket_record.category if ticket_record else None
+            finally:
+                db.close()
 
-            await callback.answer(f"Тикет закрыт ✅\nНачислено: {amount} ₽\nБаланс: {new_balance} ₽")
+            # Баланс не начисляется за категории "Сбросить HWID" и "Получить ключ"
+            excluded_categories = ["hwid", "key"]
+            if ticket_category in excluded_categories:
+                amount = 0.0
+                new_balance = self.balance_service.get_admin_balance(admin_id)
+                message_text = f"Тикет закрыт ✅\nБаланс не начисляется за данную категорию\nБаланс: {new_balance:.2f} ₽"
+            else:
+                amount = 50.0
+                new_balance = self.balance_service.add_balance(admin_id, amount)
+                message_text = f"Тикет закрыт ✅\nНачислено: {amount} ₽\nБаланс: {new_balance} ₽"
+
+            await callback.answer(message_text)
 
             from App.Infrastructure.Models.database import get_db
             from App.Infrastructure.Models import Ticket as TicketModelDB
@@ -187,7 +205,18 @@ class CallbackService:
             await callback.answer("Неверный формат номера тикета", show_alert=True)
             return
 
-        await state.update_data(rename_ticket_id=ticket_number)
+        # Найдем тикет (ticket_number может быть как display_id так и db_id)
+        ticket = self.ticket_service.get_ticket_by_display_id(ticket_number)
+        if not ticket:
+            # Попробуем найти по db_id если не нашли по display_id
+            ticket = self.ticket_service.get_ticket_by_db_id(ticket_number)
+            if not ticket:
+                await callback.answer("Тикет не найден", show_alert=True)
+                return
+
+        ticket_db_id = ticket.db_id
+
+        await state.update_data(rename_ticket_id=ticket_db_id, rename_admin_id=callback.from_user.id)
         await callback.answer()
         await callback.message.answer("✏️ Напишите новое название для темы тикета:")
 

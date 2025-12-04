@@ -168,7 +168,7 @@
         },
         {
           "text": "✏️ Переименовать",
-          "callback_data": "rename_{number}"
+          "callback_data": "rename_{id}"
         }
       ]
     ],

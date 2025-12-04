@@ -297,7 +297,6 @@ class TicketService:
 
         if ticket.status == "in_progress":
             await self.channel_manager.send_user_message(ticket, message_text)
-            await self.channel_manager.update_topic_icon(ticket, "❓")
 
             
             if self.websocket_manager:
@@ -336,7 +335,7 @@ class TicketService:
 
         if ticket.status == "in_progress":
             await self.channel_manager.send_user_media(ticket, message)
-            await self.channel_manager.update_topic_icon(ticket, "❓")
+            # Не меняем иконку на ❓ для медиа тикетов которые уже в работе
             logger.info(f"Медиа от пользователя {user_id}")
         else:
             logger.info(f"Медиа от пользователя {user_id} игнорировано, тикет не взят")
@@ -367,18 +366,51 @@ class TicketService:
 
     def get_ticket_by_db_id(self, db_id: int) -> Optional[Ticket]:
         """Получить тикет по db_id из активных тикетов или загрузить из БД"""
-        
+
         for ticket in self.active_tickets.values():
             if ticket.db_id == db_id:
                 return ticket
-        
-        
+
+        # Загружаем из БД если не найдено в памяти
         from App.Infrastructure.Models.database import get_db
         from App.Infrastructure.Models import Ticket as TicketModelDB
 
         db = get_db()
         try:
             db_ticket = db.query(TicketModelDB).filter(TicketModelDB.id == db_id).first()
+            if not db_ticket:
+                return None
+
+            ticket = Ticket(
+                db_id=db_ticket.id,
+                display_id=db_ticket.display_id,
+                user_id=db_ticket.user_id,
+                username=db_ticket.username or f"user_{db_ticket.user_id}",
+                user_message=db_ticket.user_message or "",
+                category=db_ticket.category or "",
+                status=db_ticket.status,
+                channel_message_id=db_ticket.channel_message_id,
+                topic_thread_id=db_ticket.topic_thread_id,
+                is_renaming=False
+            )
+            return ticket
+        finally:
+            db.close()
+
+    def get_ticket_by_display_id(self, display_id: int) -> Optional[Ticket]:
+        """Получить тикет по display_id из активных тикетов или загрузить из БД"""
+
+        for ticket in self.active_tickets.values():
+            if ticket.display_id == display_id:
+                return ticket
+
+        # Загружаем из БД если не найдено в памяти
+        from App.Infrastructure.Models.database import get_db
+        from App.Infrastructure.Models import Ticket as TicketModelDB
+
+        db = get_db()
+        try:
+            db_ticket = db.query(TicketModelDB).filter(TicketModelDB.display_id == display_id).first()
             if not db_ticket:
                 return None
 
@@ -693,15 +725,35 @@ class TicketService:
 
     async def rename_ticket(self, ticket_db_id: int, new_name: str) -> bool:
         """Переименовать топик тикета"""
-        ticket = self.get_ticket_by_db_id(ticket_db_id)
-        if not ticket:
-            logger.warning(f"Тикет с db_id {ticket_db_id} не найден")
-            return False
-        ticket.is_renaming = True
-        
+        from App.Infrastructure.Models.database import get_db
+        from App.Infrastructure.Models import Ticket as TicketModelDB
+
+        db = get_db()
         try:
+            db_ticket = db.query(TicketModelDB).filter(TicketModelDB.id == ticket_db_id).first()
+            if not db_ticket:
+                logger.warning(f"Тикет с db_id {ticket_db_id} не найден в базе данных")
+                return False
+
+            if not db_ticket.topic_thread_id:
+                logger.warning(f"Тикет {ticket_db_id} не имеет топика для переименования")
+                return False
+
+            ticket = Ticket(
+                db_id=db_ticket.id,
+                display_id=db_ticket.display_id,
+                user_id=db_ticket.user_id,
+                username=db_ticket.username or f"user_{db_ticket.user_id}",
+                user_message=db_ticket.user_message or "",
+                category=db_ticket.category or "",
+                status=db_ticket.status,
+                channel_message_id=db_ticket.channel_message_id,
+                topic_thread_id=db_ticket.topic_thread_id,
+                is_renaming=True
+            )
+
             success = await self.channel_manager.rename_topic(ticket, new_name)
-            
+
             if success:
                 logger.info(f"Тикет {ticket_db_id} успешно переименован на '{new_name}'")
                 return True
@@ -709,4 +761,4 @@ class TicketService:
                 logger.warning(f"Не удалось переименовать топик тикета {ticket_db_id}")
                 return False
         finally:
-            ticket.is_renaming = False
+            db.close()

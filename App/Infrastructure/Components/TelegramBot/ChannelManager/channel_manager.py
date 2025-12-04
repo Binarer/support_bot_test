@@ -288,14 +288,16 @@ class ChannelManager:
         status_text = {
             "❓": "Ждет ответа",
             "☑️": "Отвечен",
-            "💼": "Закрыт"
+            "✅": "Закрыт",
+            "🔧": "В работе"
         }
         status_name = status_text.get(icon, 'Неизвестен')
 
         emoji_to_id = {
             "❓": "5377316857231450742",
             "☑️": None,
-            "💼": None
+            "✅": "5237699328843200968",
+            "🔧": "5238156910363950406"
         }
         custom_emoji_id = emoji_to_id.get(icon)
 
@@ -341,7 +343,7 @@ class ChannelManager:
             await self.bot.edit_forum_topic(
                 chat_id=self.support_channel_id,
                 message_thread_id=ticket.topic_thread_id,
-                icon_custom_emoji_id="5377316857231450742"
+                icon_custom_emoji_id="5238156910363950406"
             )
 
             keyboard_data = config.bot_keyboards.get('ticket_admin', [])
@@ -441,7 +443,18 @@ class ChannelManager:
             logger.warning(f"Не удалось обновить общее сообщение для тикета #{ticket.display_id}: {e}")
 
         try:
+            # Установить иконку закрытого тикета перед закрытием топика
             if ticket.topic_thread_id:
+                try:
+                    await self.bot.edit_forum_topic(
+                        chat_id=self.support_channel_id,
+                        message_thread_id=ticket.topic_thread_id,
+                        icon_custom_emoji_id="5237699328843200968"
+                    )
+                    logger.info(f"Установлена иконка закрытого тикета для топика {ticket.topic_thread_id}")
+                except Exception as e:
+                    logger.warning(f"Не удалось установить иконку закрытого тикета: {e}")
+
                 try:
                     await self.bot.close_forum_topic(
                         chat_id=self.support_channel_id,
