@@ -207,7 +207,8 @@ class TicketService:
             return
 
         support_name = message.from_user.username or message.from_user.first_name or f"user_{message.from_user.id}"
-        support_message = message.text or ""  
+        support_message = message.text or ""
+        logger.info(f"[DEBUG] process_support_topic_message: thread_id={thread_id}, content_type={message.content_type}, text='{support_message}' websocket_manager={self.websocket_manager is not None}")
 
         if message.content_type in ['photo', 'video', 'sticker', 'document', 'animation']:
             
