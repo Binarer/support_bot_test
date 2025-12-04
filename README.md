@@ -22,7 +22,7 @@ docker-compose up -d
 - `GET /api/ticket/{id}/status` - Получить статус тикета
 - `POST /api/ticket/{id}/close` - Закрыть тикет
 - `POST /api/ticket/{id}/rating` - Оценить тикет
-- `WebSocket /ws/ticket/{id}` - Подключение к реальному времени
+- `WebSocket /ws/ticket/{id}` - Подключение к чату тикета
 
 ## Структура проекта
 
