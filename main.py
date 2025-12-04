@@ -46,7 +46,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Глобальные переменные для сервисов
+
 telegram_bot = None
 ticket_service = None
 rating_service = None
@@ -64,14 +64,14 @@ async def lifespan(app: FastAPI):
         
         init_db()
         
-        websocket_manager = WebSocketManager()
-        logger.info("WebSocketManager создан")
-        
         telegram_bot = TelegramBotClient()
         logger.info("Бот создан")
-        
+
         channel_manager = ChannelManager(telegram_bot.bot)
         logger.info("ChannelManager создан")
+
+        websocket_manager = WebSocketManager(channel_manager)
+        logger.info("WebSocketManager создан")
         
         balance_service = BalanceService()
         statistics_service = StatisticsService(telegram_bot.bot)
@@ -120,10 +120,15 @@ async def lifespan(app: FastAPI):
             - Текстовые сообщения
             - Медиа файлы (фото, видео, документы)
 
+            **Способы отправки медиа:**
+            1. **По URL:** Укажите media_url с прямой ссылкой на файл
+            2. **Прямая загрузка:** Используйте media_data с base64 encoded данными
+
             **Для медиа файлов:**
-            - Укажите media_type: "photo", "video", или "document"
-            - Предоставьте media_url с прямой ссылкой на файл
-            - Опционально добавьте media_caption
+            - Обязательно укажите media_type: "photo", "video", или "document"
+            - Для base64: добавьте media_data и filename
+            - Для URL: добавьте media_url (filename опционально)
+            - Опционально: media_caption для подписи
 
             **Примеры использования:**
             ```json
@@ -132,12 +137,30 @@ async def lifespan(app: FastAPI):
               "message": "У меня проблема с..."
             }
 
-            // Сообщение с фото
+            // Медиа по URL
             {
               "message": "Вот скриншот проблемы",
               "media_type": "photo",
               "media_url": "https://example.com/screenshot.jpg",
               "media_caption": "Скриншот ошибки"
+            }
+
+            // Прямая загрузка фото (base64)
+            {
+              "message": "Скриншот прикреплен",
+              "media_type": "photo",
+              "media_data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+              "filename": "error_screenshot.jpg",
+              "media_caption": "Главная страница с ошибкой"
+            }
+
+            // Прямая загрузка видео
+            {
+              "message": "Видео с демонстрацией ошибки",
+              "media_type": "video",
+              "media_data": "AAAFB...base64_encoded_video_data...",
+              "filename": "error_demo.mp4",
+              "media_caption": "Видео не запускается"
             }
             ```
             """
@@ -183,13 +206,30 @@ async def lifespan(app: FastAPI):
               "message": "Привет, нужна помощь"
             }
 
-            // Медиа
+            // Медиа по URL
             {
               "type": "media",
               "media_type": "photo",
               "media_url": "https://example.com/image.jpg",
-              "media_caption": "Скриншот проблемы",
-              "filename": "screenshot.jpg"
+              "media_caption": "Скриншот проблемы"
+            }
+
+            // Прямая загрузка фото (base64)
+            {
+              "type": "media",
+              "media_type": "photo",
+              "media_data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+              "filename": "screenshot.jpg",
+              "media_caption": "Скриншот с ошибкой"
+            }
+
+            // Прямая загрузка видео
+            {
+              "type": "media",
+              "media_type": "video",
+              "media_data": "AAAFB...ваши_base64_данные_видео...",
+              "filename": "error_demo.mp4",
+              "media_caption": "Видео не работает"
             }
             ```
             """
@@ -261,8 +301,22 @@ async def main():
         api_app = FastAPI(
             lifespan=lifespan,
             title="Support Bot API",
-            version="1.0.0",
-            description="API для управления тикетами поддержки",
+            version="1.2.0",
+            description="""
+            API для управления тикетами поддержки с расширенной медиа поддержкой.
+
+            
+            - **Прямая загрузка файлов**: Base64 encoded фото, видео и документы
+            - **Медиа загрузка**: Поддержка фото, видео и документов через API и WebSocket
+            - **Реальное время**: Двунаправленное общение через WebSocket
+            - **Интеграция**: Полная интеграция с Telegram ботом поддержки
+
+            
+            1. Создайте тикет через `/api/ticket/create`
+            2. Подключитесь к WebSocket `/ws/ticket/{ticket_id}`
+            3. Отправляйте сообщения с прикрепленными файлами
+            4. Общайтесь в реальном времени с поддержкой
+            """,
             docs_url="/docs",
             redoc_url="/redoc",
             openapi_url="/openapi.json"

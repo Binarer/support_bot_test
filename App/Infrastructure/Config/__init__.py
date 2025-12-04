@@ -11,18 +11,18 @@ class Config:
         self.TELEGRAM_BOT_TOKEN: str = os.getenv('TELEGRAM_BOT_TOKEN', '')
         self.TELEGRAM_ADMIN_IDS: List[int] = []
         self.SUPPORT_CHANNEL_ID: int = int(os.getenv('SUPPORT_CHANNEL_ID', '0'))
-        self.GENERAL_TOPIC_ID: int = int(os.getenv('GENERAL_TOPIC_ID', '1'))  # Default to thread_id=1 if not set
+        self.GENERAL_TOPIC_ID: int = int(os.getenv('GENERAL_TOPIC_ID', '1'))  
         self.REVIEWS_TOPIC_ID: Optional[int] = int(os.getenv('REVIEWS_TOPIC_ID', '0')) if os.getenv('REVIEWS_TOPIC_ID') else None
         self.LOG_LEVEL: str = os.getenv('LOG_LEVEL', 'INFO')
 
-        # Database configuration
+        
         self.DB_HOST: str = os.getenv('DB_HOST', 'localhost')
         self.DB_PORT: str = os.getenv('DB_PORT', '15432')
         self.DB_NAME: str = os.getenv('DB_NAME', 'support_bot')
         self.DB_USER: str = os.getenv('DB_USER', 'postgres')
         self.DB_PASSWORD: str = os.getenv('DB_PASSWORD', '')
 
-        # Database URL for SQLAlchemy
+        
         self.DATABASE_URL: str = f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         self.bot_messages: Dict[str, Any] = {}
         self.bot_keyboards: Dict[str, Any] = {}

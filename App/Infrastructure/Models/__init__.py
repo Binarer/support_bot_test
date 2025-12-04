@@ -13,7 +13,7 @@ class Ticket(Base):
     username = Column(String, nullable=True)
     user_message = Column(Text, nullable=True)
     category = Column(String, nullable=True)
-    status = Column(String, default="pending", index=True)  # pending, taken, in_progress, closed, cancelled
+    status = Column(String, default="pending", index=True)  
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     taken_by = Column(BigInteger, nullable=True, index=True)

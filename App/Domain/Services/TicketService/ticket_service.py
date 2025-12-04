@@ -199,29 +199,22 @@ class TicketService:
             return
 
         support_name = message.from_user.username or message.from_user.first_name or f"user_{message.from_user.id}"
+        support_message = message.text or ""  
 
         if message.content_type in ['photo', 'video', 'sticker', 'document', 'animation']:
-            # Отправка медиа поддержки пользователю
+            
             await self.channel_manager.send_support_media_reply(ticket.user_id, message)
 
-            # Получаем URL медиа для отправки через websocket
-            media_info = self._extract_media_info(message)
-            if media_info and self.websocket_manager:
-                await self.websocket_manager.send_support_media_to_client(
-                    ticket.db_id,
-                    media_info['type'],
-                    media_info['url'],
-                    media_info['filename'],
-                    message.caption or "",
-                    support_name
-                )
+            
+            if self.websocket_manager:
+                await self._send_support_media_to_client(ticket.db_id, message, support_name)
         else:
             support_message = message.text or ""
             if support_message.strip():
-                # Отправка текстового сообщения через стандартные каналы
+                
                 await self.channel_manager.send_support_reply(ticket.user_id, support_message, support_name)
 
-                # Отправка через websocket
+                
                 if self.websocket_manager:
                     await self.websocket_manager.send_support_message_to_client(
                         ticket.db_id,
@@ -234,7 +227,7 @@ class TicketService:
         except Exception as e:
             logger.warning(f"Не удалось обновить иконку топика: {e}")
 
-        # Уведомляем об обновлении тикета (новое сообщение поддержки)
+        
         if self.websocket_manager:
             from App.Domain.Models.TicketUpdate.TicketUpdate import TicketUpdate
             await self.websocket_manager.notify_update(
@@ -252,7 +245,7 @@ class TicketService:
         """Извлекает информацию о медиа из сообщения телеграм"""
         try:
             if message.photo:
-                # Получаем самое большое фото
+                
                 photo = message.photo[-1]
                 file_info = photo.file_id
                 return {
@@ -274,7 +267,7 @@ class TicketService:
                 }
             elif message.animation:
                 return {
-                    'type': 'document',  # GIF отправляем как документ
+                    'type': 'document',  
                     'url': f"https://api.telegram.org/file/bot{self.channel_manager.bot.token}/{message.animation.file_id}",
                     'filename': 'animation.gif'
                 }
@@ -293,7 +286,7 @@ class TicketService:
             await self.channel_manager.send_user_message(ticket, message_text)
             await self.channel_manager.update_topic_icon(ticket, "❓")
 
-            # Уведомляем об обновлении тикета (новое сообщение пользователя)
+            
             if self.websocket_manager:
                 from App.Domain.Models.TicketUpdate.TicketUpdate import TicketUpdate
                 await self.websocket_manager.notify_update(
@@ -305,7 +298,7 @@ class TicketService:
                     )
                 )
 
-                # Отправляем сообщение пользователя через websocket
+                
                 await self.websocket_manager.send_support_message_to_client(
                     ticket.db_id,
                     f"Пользователь: {message_text}",
@@ -338,7 +331,7 @@ class TicketService:
 
         ticket = self.ticket_by_message_id[message_id]
 
-        # Отправляем ответ пользователю
+        
         await self.channel_manager.send_support_reply(
             ticket.user_id,
             support_message,
@@ -356,12 +349,12 @@ class TicketService:
 
     def get_ticket_by_db_id(self, db_id: int) -> Optional[Ticket]:
         """Получить тикет по db_id из активных тикетов или загрузить из БД"""
-        # Сначала проверяем активные тикеты
+        
         for ticket in self.active_tickets.values():
             if ticket.db_id == db_id:
                 return ticket
         
-        # Если не найден в активных, загружаем из БД
+        
         from App.Infrastructure.Models.database import get_db
         from App.Infrastructure.Models import Ticket as TicketModelDB
 
@@ -396,11 +389,11 @@ class TicketService:
             raise ValueError("Тикет закрыт или отменен, нельзя отправить сообщение")
         
         if ticket.status == "in_progress" and ticket.topic_thread_id:
-            # Тикет взят в работу, отправляем сообщение в топик
+            
             await self.channel_manager.send_user_message(ticket, message_text)
             await self.channel_manager.update_topic_icon(ticket, "❓")
 
-            # Уведомляем об обновлении тикета (новое сообщение пользователя)
+            
             if self.websocket_manager:
                 from App.Domain.Models.TicketUpdate.TicketUpdate import TicketUpdate
                 await self.websocket_manager.notify_update(
@@ -415,10 +408,10 @@ class TicketService:
             logger.info(f"Сообщение отправлено в тикет {ticket_id}: {message_text}")
             return True
         elif ticket.status == "pending":
-            # Тикет еще не взят, сохраняем сообщение для отправки после взятия
-            # Пока просто логируем
+            
+            
             logger.info(f"Сообщение для тикета {ticket_id} (еще не взят): {message_text}")
-            # Можно добавить сохранение в БД или очередь
+            
             return True
         else:
             raise ValueError("Невозможно отправить сообщение в тикет с текущим статусом")
@@ -525,7 +518,7 @@ class TicketService:
                 if ticket.topic_thread_id in self.ticket_by_thread_id:
                     del self.ticket_by_thread_id[ticket.topic_thread_id]
 
-                # Вызываем соответствующий метод в зависимости от того, кто закрывает
+                
                 if admin_id:
                     await self.channel_manager.close_ticket_by_admin(ticket)
                 else:
@@ -587,3 +580,88 @@ class TicketService:
             await self.websocket_manager.close_connections(ticket.db_id, "Тикет закрыт пользователем")
         
         logger.info(f"Тикет {ticket.id} закрыт пользователем {username}")
+
+    async def _send_support_media_to_client(self, ticket_id: int, message, support_name: str):
+        """Скачивает медиа из Telegram и отправляет клиенту через websocket в base64"""
+        import base64
+        import aiohttp
+
+        try:
+            
+            file_id = None
+            media_type = None
+            filename = None
+
+            if message.photo:
+                
+                file_id = message.photo[-1].file_id
+                media_type = 'photo'
+                filename = 'photo.jpg'
+            elif message.video:
+                file_id = message.video.file_id
+                media_type = 'video'
+                filename = message.video.file_name or 'video.mp4'
+            elif message.document:
+                file_id = message.document.file_id
+                media_type = 'document'
+                filename = message.document.file_name or 'document'
+            elif message.animation:
+                file_id = message.animation.file_id
+                media_type = 'document'  
+                filename = 'animation.gif'
+            elif message.sticker:
+                file_id = message.sticker.file_id
+                media_type = 'photo'  
+                filename = 'sticker.png'
+
+            if not file_id:
+                logger.warning("Не удалось определить file_id медиа")
+                return
+
+            
+            file = await self.channel_manager.bot.get_file(file_id)
+            file_path = file.file_path
+
+            
+            download_url = f"https://api.telegram.org/file/bot{self.channel_manager.bot.token}/{file_path}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(download_url) as response:
+                    if response.status != 200:
+                        logger.error(f"Ошибка скачивания файла: {response.status}")
+                        return
+
+                    media_data = await response.read()
+                    logger.info(f"Скачано медиа {filename}, размер: {len(media_data)} байт")
+
+            
+            base64_data = base64.b64encode(media_data).decode('utf-8')
+            logger.info(f"Медиа {filename} преобразовано в base64, длина: {len(base64_data)}")
+
+            
+            await self.websocket_manager.send_support_media_base64_to_client(
+                ticket_id,
+                media_type,
+                base64_data,
+                filename,
+                message.caption or "",
+                support_name
+            )
+
+            logger.info(f"Медиа {filename} отправлено клиенту через WebSocket")
+
+        except Exception as e:
+            logger.error(f"Ошибка обработки медиа в _send_support_media_to_client: {e}")
+            
+            try:
+                notification_text = f"{support_name} отправил медиа"
+                if message.caption:
+                    notification_text += f" с подписью: {message.caption}"
+
+                await self.websocket_manager.send_support_message_to_client(
+                    ticket_id,
+                    notification_text,
+                    support_name
+                )
+                logger.info("Отправлено текстовое уведомление вместо медиа")
+            except Exception as fallback_error:
+                logger.error(f"Ошибка отправки fallback уведомления: {fallback_error}")

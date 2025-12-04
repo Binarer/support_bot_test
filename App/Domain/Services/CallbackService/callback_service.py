@@ -69,7 +69,7 @@ class CallbackService:
 
         ticket = await self.ticket_service.take_ticket(user_id, admin_name, ticket_number)
         if ticket:
-            await callback.answer(f"Тикет #{ticket_number} взят в работу")
+            await callback.answer(f"Тикет 
         else:
             await callback.answer("Тикет не найден или уже взят", show_alert=True)
 
@@ -81,7 +81,7 @@ class CallbackService:
 
     async def _handle_cancel_ticket_callback(self, callback: CallbackQuery):
         try:
-            ticket_number = int(callback.data.split(":")[1])  # cancel_ticket:{number}
+            ticket_number = int(callback.data.split(":")[1])  
         except (IndexError, ValueError):
             await callback.answer("Неверный формат номера тикета", show_alert=True)
             return
@@ -90,7 +90,7 @@ class CallbackService:
 
         success = await self.ticket_service.cancel_ticket(ticket_number, cancelled_by_admin=is_admin_cancel)
         if success:
-            await callback.answer(f"Тикет #{ticket_number} отменён")
+            await callback.answer(f"Тикет 
         else:
             await callback.answer("Тикет не найден", show_alert=True)
 
@@ -120,7 +120,7 @@ class CallbackService:
                 "Пожалуйста, оцените работу поддержки:",
                 reply_markup=keyboard
             )
-            logger.info(f"Отправлен запрос оценки для тикета #{ticket_number} пользователю {user_id}")
+            logger.info(f"Отправлен запрос оценки для тикета 
         except Exception as e:
             logger.error(f"Ошибка при отправке запроса оценки: {e}")
 

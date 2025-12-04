@@ -164,11 +164,11 @@ class StatisticsService:
             table.scale(1, 2)
 
             for i in range(len(col_labels)):
-                table[(0, i)].set_facecolor('#555555')
+                table[(0, i)].set_facecolor('
                 table[(0, i)].set_text_props(weight='bold', color='white')
 
             for i in range(1, len(table_data) + 1):
-                color = '#333333' if i % 2 == 0 else '#2a2a2a'
+                color = '
                 for j in range(len(col_labels)):
                     table[(i, j)].set_facecolor(color)
                     table[(i, j)].set_text_props(color='white')

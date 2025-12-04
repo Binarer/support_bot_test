@@ -31,7 +31,7 @@ class SupportProcessor:
                 logger.warning(f"Тикет для thread_id {thread_id} не найден")
                 return
 
-            # Check if this is a media message or text message
+            
             await self.ticket_service.process_support_topic_message(thread_id, message)
 
             logger.info(f"Обработано сообщение поддержки для тикета {ticket.id}")

@@ -14,7 +14,7 @@ class ChannelManager:
         self.bot = bot
         self.support_channel_id = config.SUPPORT_CHANNEL_ID
         self.general_topic_id = config.GENERAL_TOPIC_ID
-        self._reviews_topic_id: Optional[int] = config.REVIEWS_TOPIC_ID  # Кеш для ID топика "отзывы"
+        self._reviews_topic_id: Optional[int] = config.REVIEWS_TOPIC_ID  
         logger.info(f"ChannelManager инициализирован для канала: {self.support_channel_id}, general_topic_id: {self.general_topic_id}, reviews_topic_id: {self._reviews_topic_id}")
 
     async def send_ticket_to_general(self, ticket: Ticket) -> int:
@@ -23,7 +23,7 @@ class ChannelManager:
 
         category_display = self._get_category_display_name(ticket.category)
         message_text = (
-            f"🎫 Тикет #{ticket.display_id}\n\n"
+            f"🎫 Тикет 
             f"👤 Пользователь: @{ticket.username}\n"
             f"📋 {ticket.user_message}\n\n"
             f"⏰ Создан: {ticket.created_at.strftime('%d.%m.%Y %H:%M')}\n"
@@ -83,7 +83,7 @@ class ChannelManager:
 
     async def update_general_message(self, ticket: Ticket, status: str):
         cancelled_text = (
-            f"🎫 Тикет #{ticket.display_id}\n\n"
+            f"🎫 Тикет 
             f"👤 Пользователь: @{ticket.username}\n"
             f"📝 {ticket.user_message}\n\n"
             f"⏰ Создан: {ticket.created_at.strftime('%d.%m.%Y %H:%M')}\n"
@@ -104,7 +104,7 @@ class ChannelManager:
     def _get_ticket_closed_text(self, db_ticket):
         """Генерирует текст для закрытого тикета из записи базы данных"""
         closed_text = (
-            f"🎫 Тикет #{db_ticket.display_id}\n\n"
+            f"🎫 Тикет 
             f"👤 Пользователь: @{db_ticket.username}\n"
             f"📝 {db_ticket.user_message}\n\n"
             f"⏰ Создан: {db_ticket.created_at.strftime('%d.%m.%Y %H:%M')}\n"
@@ -182,7 +182,7 @@ class ChannelManager:
             from datetime import datetime
             current_time = datetime.now().strftime('%d.%m.%Y %H:%M')
             bot_name = self.bot.username or "test_helper_bot"
-            cancellation_info = f"\n{bot_name}, [{current_time}]\n❌ Ваш тикет #{ticket.display_id} был отменен администратором."
+            cancellation_info = f"\n{bot_name}, [{current_time}]\n❌ Ваш тикет 
 
             new_text = original_text + cancellation_info
 
@@ -223,6 +223,11 @@ class ChannelManager:
 
     async def send_support_reply(self, user_id: int, support_message: str, support_name: str):
         try:
+            
+            if not self._is_valid_telegram_chat_id(user_id):
+                logger.info(f"Пользователь {user_id} не имеет Telegram аккаунта, пропускаем отправку сообщения")
+                return
+
             await self.bot.send_message(
                 chat_id=user_id,
                 text=support_message,
@@ -230,13 +235,31 @@ class ChannelManager:
             )
             logger.info(f"Ответ поддержки отправлен пользователю {user_id}")
         except Exception as e:
-            logger.error(f"Ошибка отправки ответа пользователю {user_id}: {e}")
-            # Для веб-пользователей через long poll не пытаемся отправлять в Telegram
-            # Просто логируем ошибку и продолжаем работу
+            logger.warning(f"Не удалось отправить ответ пользователю {user_id} (возможно веб-пользователь): {e}")
+            
+            
+
+    def _is_valid_telegram_chat_id(self, user_id: int) -> bool:
+        """Проверяет, является ли user_id валидным Telegram chat_id"""
+        
+        
+        
+        
+        
+        if user_id <= 0:
+            return True  
+        if 1 <= user_id <= 999999999:
+            return True  
+        return False  
 
     async def send_support_media_reply(self, user_id: int, message):
         """Отправка медиа от поддержки пользователю"""
         try:
+            
+            if not self._is_valid_telegram_chat_id(user_id):
+                logger.info(f"Пользователь {user_id} не имеет Telegram аккаунта, пропускаем отправку медиа")
+                return
+
             await self.bot.copy_message(
                 chat_id=user_id,
                 from_chat_id=message.chat.id,
@@ -244,7 +267,9 @@ class ChannelManager:
             )
             logger.info(f"Медиа поддержки отправлено пользователю {user_id}")
         except Exception as e:
-            logger.error(f"Ошибка отправки медиа поддержки пользователю {user_id}: {e}")
+            logger.warning(f"Не удалось отправить медиа пользователю {user_id} (возможно веб-пользователь): {e}")
+            
+            
 
     async def rename_topic(self, ticket: Ticket, new_name: str) -> bool:
         try:
@@ -275,7 +300,7 @@ class ChannelManager:
         custom_emoji_id = emoji_to_id.get(icon)
 
         new_text = (
-            f"🎫 Тикет #{ticket.display_id}\n\n"
+            f"🎫 Тикет 
             f"👤 Пользователь: @{ticket.username}\n"
             f"📝 {ticket.user_message}\n\n"
             f"⏰ Обновлен: {ticket.updated_at.strftime('%d.%m.%Y %H:%M')}\n"
@@ -302,7 +327,7 @@ class ChannelManager:
     
     async def take_ticket_and_create_topic(self, ticket: Ticket, admin_id: int, admin_name: str) -> int:
         logger.info(f"Взятие тикета {ticket.id} администратором {admin_name}")
-        topic_name = f"#{ticket.display_id} {ticket.username}"
+        topic_name = f"
         message_text = config.bot_messages.get('menu_message', 'Menu message')
 
         try:
@@ -343,7 +368,7 @@ class ChannelManager:
             )
 
             taken_text = (
-                f"🎫 Тикет #{ticket.display_id}\n\n"
+                f"🎫 Тикет 
                 f"👤 Пользователь: @{ticket.username}\n"
                 f"📝 {ticket.user_message}\n\n"
                 f"⏰ Взят: администратором {admin_name}\n"
@@ -383,12 +408,12 @@ class ChannelManager:
         try:
             await self._notify_ticket_closed_by_user(ticket)
         except Exception as e:
-            logger.warning(f"Не удалось уведомить о закрытии тикета #{ticket.display_id} пользователем: {e}")
+            logger.warning(f"Не удалось уведомить о закрытии тикета 
 
         try:
             await self.update_general_message(ticket, "✅ Закрыт пользователем")
         except Exception as e:
-            logger.warning(f"Не удалось обновить общее сообщение для тикета #{ticket.display_id}, закрытого пользователем: {e}")
+            logger.warning(f"Не удалось обновить общее сообщение для тикета 
 
         try:
             if ticket.topic_thread_id:
@@ -408,12 +433,12 @@ class ChannelManager:
         try:
             await self._notify_ticket_closed_by_admin(ticket)
         except Exception as e:
-            logger.warning(f"Не удалось уведомить о закрытии тикета #{ticket.display_id} администратором: {e}")
+            logger.warning(f"Не удалось уведомить о закрытии тикета 
 
         try:
             await self.update_general_message(ticket, "✅ Закрыт администратором")
         except Exception as e:
-            logger.warning(f"Не удалось обновить общее сообщение для тикета #{ticket.display_id}, закрытого администратором: {e}")
+            logger.warning(f"Не удалось обновить общее сообщение для тикета 
 
         try:
             if ticket.topic_thread_id:
@@ -432,11 +457,11 @@ class ChannelManager:
         """Уведомляет команду поддержки об отмене тикета"""
         if cancelled_by_admin:
             notification_text = (
-                f"⚠️ Администратор отменил тикет #{ticket.display_id} пользователя @{ticket.username}."
+                f"⚠️ Администратор отменил тикет 
             )
         else:
             notification_text = (
-                f"ℹ️ Пользователь @{ticket.username} отменил тикет #{ticket.display_id}."
+                f"ℹ️ Пользователь @{ticket.username} отменил тикет 
             )
 
         target_threads = []
@@ -452,7 +477,7 @@ class ChannelManager:
     async def _notify_ticket_closed_by_user(self, ticket: Ticket):
         """Информирует сотрудников поддержки о закрытии тикета пользователем"""
         notification_text = (
-            f"ℹ️ Пользователь @{ticket.username} закрыл тикет #{ticket.display_id} самостоятельно."
+            f"ℹ️ Пользователь @{ticket.username} закрыл тикет 
         )
 
         target_threads = []
@@ -468,7 +493,7 @@ class ChannelManager:
     async def _notify_ticket_closed_by_admin(self, ticket: Ticket):
         """Информирует сотрудников поддержки о закрытии тикета администратором"""
         notification_text = (
-            f"✅ Администратор закрыл тикет #{ticket.display_id} пользователя @{ticket.username}."
+            f"✅ Администратор закрыл тикет 
         )
 
         target_threads = []
@@ -544,7 +569,7 @@ class ChannelManager:
                 return
 
             cancelled_text = (
-                f"🎫 Тикет #{display_id}\n\n"
+                f"🎫 Тикет 
                 f"👤 Пользователь: @{db_ticket.username}\n"
                 f"📝 {db_ticket.user_message}\n\n"
                 f"⏰ Создан: {db_ticket.created_at.strftime('%d.%m.%Y %H:%M')}\n"
@@ -575,7 +600,7 @@ class ChannelManager:
         if self._reviews_topic_id:
             return self._reviews_topic_id
 
-        # Если REVIEWS_TOPIC_ID не задан в конфиге, создаем новый топик
+        
         if not config.REVIEWS_TOPIC_ID:
             try:
                 topic = await self.bot.create_forum_topic(
@@ -607,12 +632,12 @@ class ChannelManager:
             try:
                 db_ticket = db.query(TicketModelDB).filter(TicketModelDB.display_id == ticket_display_id).first()
                 if not db_ticket:
-                    logger.warning(f"Тикет #{ticket_display_id} не найден для отправки отзыва")
+                    logger.warning(f"Тикет 
                     return
 
                 stars = "⭐" * rating
                 review_text = (
-                    f"⭐ <b>Отзыв о тикете #{ticket_display_id}</b>\n\n"
+                    f"⭐ <b>Отзыв о тикете 
                     f"👤 <b>Пользователь:</b> @{username}\n"
                     f"⭐ <b>Оценка:</b> {rating}/5 {stars}\n"
                 )
@@ -633,7 +658,7 @@ class ChannelManager:
                     text=review_text,
                     parse_mode="HTML"
                 )
-                logger.info(f"Отзыв о тикете #{ticket_display_id} отправлен в топик 'отзывы'")
+                logger.info(f"Отзыв о тикете 
             finally:
                 db.close()
         except Exception as e:

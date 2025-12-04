@@ -48,17 +48,7 @@ class TicketApplicationService:
         finally:
             db.close()
 
-        # Отправляем начальное сообщение с инструкциями через API (не через Telegram бота)
-        try:
-            user_instruction = self.ticket_service.channel_manager.config.bot_messages.get('user_instruction', '')
-            if user_instruction and self.ticket_service.websocket_manager:
-                await self.ticket_service.websocket_manager.send_support_message_to_client(
-                    ticket.db_id,
-                    user_instruction,
-                    "Система поддержки"
-                )
-        except Exception as e:
-            logger.warning(f"Не удалось отправить инструкции клиенту через websocket: {e}")
+
 
         return TicketResponse(
             ticket_id=ticket.db_id,

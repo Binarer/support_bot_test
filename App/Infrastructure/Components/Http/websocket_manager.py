@@ -10,11 +10,12 @@ logger = logging.getLogger(__name__)
 
 
 class WebSocketManager:
-    def __init__(self):
-        # ticket_id -> Set[WebSocket]
+    def __init__(self, channel_manager=None):
+        
         self._active_connections: Dict[int, Set[WebSocket]] = {}
-        # WebSocket -> (ticket_id, user_id)
+        
         self._connection_info: Dict[WebSocket, tuple[int, int]] = {}
+        self.channel_manager = channel_manager
         
     
     async def disconnect(self, websocket: WebSocket):
@@ -56,7 +57,7 @@ class WebSocketManager:
                 logger.warning(f"Ошибка отправки обновления в WebSocket: {e}")
                 disconnected.append(websocket)
         
-        # Удаляем отключенные соединения
+        
         for websocket in disconnected:
             await self.disconnect(websocket)
     
@@ -89,11 +90,11 @@ class WebSocketManager:
     
     async def handle_websocket(self, websocket: WebSocket, ticket_id: int):
         """Обработать WebSocket соединение"""
-        # Принимаем соединение сразу
+        
         await websocket.accept()
         
         try:
-            # Ожидаем сообщение подписки
+            
             try:
                 data = await websocket.receive_text()
             except WebSocketDisconnect:
@@ -128,40 +129,40 @@ class WebSocketManager:
                     await websocket.close()
                     return
                 
-                # Подключаем клиента (регистрируем в менеджере)
+                
                 if ticket_id not in self._active_connections:
                     self._active_connections[ticket_id] = set()
-                
+
                 self._active_connections[ticket_id].add(websocket)
                 self._connection_info[websocket] = (ticket_id, user_id)
-                
+
                 logger.info(f"WebSocket подключен для тикета {ticket_id}, пользователь {user_id}")
+
                 
-                # Отправляем подтверждение подключения
                 await self._send_json(websocket, {
                     "type": "connected",
                     "ticket_id": ticket_id,
                     "message": "Подключение установлено"
                 })
                 
-                # Ожидаем сообщения от клиента (можно использовать для ping/pong или других команд)
+                
                 while True:
                     try:
                         data = await websocket.receive_text()
                         message = json.loads(data)
                         
-                        # Обработка ping/pong
+                        
                         if message.get("type") == "ping":
                             await self._send_json(websocket, {
                                 "type": "pong",
                                 "ticket_id": ticket_id
                             })
-                        # Обработка сообщений от клиента
+                        
                         elif message.get("type") == "message":
                             await self._handle_client_message(ticket_id, user_id, message)
                         elif message.get("type") == "media":
                             await self._handle_client_media(ticket_id, user_id, message)
-                        # Можно добавить другие типы сообщений здесь
+                        
                         
                     except WebSocketDisconnect:
                         break
@@ -189,9 +190,9 @@ class WebSocketManager:
         """Обработка текстового сообщения от клиента"""
         from App.Domain.Services.TicketService.ticket_service import TicketService
 
-        ticket_service = TicketService(self)  # Initialize ticket service
+        ticket_service = TicketService(self.channel_manager, self)  
 
-        # Получаем текст сообщения
+        
         message_text = message_data.get("message", "").strip()
         if not message_text:
             await self._send_json_by_ticket(ticket_id, {
@@ -221,17 +222,27 @@ class WebSocketManager:
 
     async def _handle_client_media(self, ticket_id: int, user_id: int, message_data: dict):
         """Обработка медиа-сообщения от клиента"""
-        from App.Domain.Services.TicketService.ticket_service import TicketService
         import aiohttp
+        import base64
+        from App.Domain.Services.TicketService.ticket_service import TicketService
 
         media_type = message_data.get("media_type")
         media_url = message_data.get("media_url")
+        media_data_b64 = message_data.get("media_data")
         media_caption = message_data.get("media_caption", "")
+        media_filename = message_data.get("filename")
 
-        if not media_type or not media_url:
+        if not media_type:
             await self._send_json_by_ticket(ticket_id, {
                 "type": "error",
-                "message": "Не указан тип медиа или URL"
+                "message": "Не указан тип медиа"
+            })
+            return
+
+        if not media_url and not media_data_b64:
+            await self._send_json_by_ticket(ticket_id, {
+                "type": "error",
+                "message": "Укажите media_url или media_data"
             })
             return
 
@@ -243,27 +254,55 @@ class WebSocketManager:
             return
 
         try:
-            # Скачиваем медиа и отправляем в Telegram
-            async with aiohttp.ClientSession() as session:
-                async with session.get(media_url) as response:
-                    if response.status != 200:
-                        await self._send_json_by_ticket(ticket_id, {
-                            "type": "error",
-                            "message": "Не удалось скачать медиа файл"
-                        })
-                        return
+            media_binary_data = None
+            filename = media_filename or "media_file"
 
-                    media_data = await response.read()
-                    media_filename = message_data.get("filename", "media_file")
-
-                    # Используем ChannelManager для отправки медиа
-                    ticket_service = TicketService(self)
-                    await self._send_media_to_support(ticket_service, user_id, media_type, media_data, media_filename, media_caption)
-
+            
+            if media_data_b64:
+                if not media_filename:
                     await self._send_json_by_ticket(ticket_id, {
-                        "type": "media_sent",
-                        "message": f"Медиа ({media_type}) отправлено"
+                        "type": "error",
+                        "message": "filename обязателен при использовании media_data"
                     })
+                    return
+
+                try:
+                    
+                    if media_data_b64.startswith('data:'):
+                        media_data_b64 = media_data_b64.split(',')[1]
+
+                    media_binary_data = base64.b64decode(media_data_b64)
+                    logger.info(f"Декодирован base64 файл {filename}, размер: {len(media_binary_data)} байт")
+                except Exception as decode_error:
+                    logger.error(f"Ошибка декодирования base64: {decode_error}")
+                    await self._send_json_by_ticket(ticket_id, {
+                        "type": "error",
+                        "message": "Неверный формат base64 данных"
+                    })
+                    return
+
+            
+            elif media_url:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(media_url) as response:
+                        if response.status != 200:
+                            await self._send_json_by_ticket(ticket_id, {
+                                "type": "error",
+                                "message": "Не удалось скачать медиа файл"
+                            })
+                            return
+
+                        media_binary_data = await response.read()
+                        logger.info(f"Скачан файл по URL {media_url}, размер: {len(media_binary_data)} байт")
+
+            
+            ticket_service = TicketService(self.channel_manager, self)
+            await self._send_media_to_support(ticket_service, user_id, media_type, media_binary_data, filename, media_caption)
+
+            await self._send_json_by_ticket(ticket_id, {
+                "type": "media_sent",
+                "message": f"Медиа ({media_type}) отправлено"
+            })
 
         except Exception as e:
             logger.error(f"Ошибка отправки медиа пользователем {user_id}: {e}")
@@ -274,56 +313,54 @@ class WebSocketManager:
 
     async def _send_media_to_support(self, ticket_service: 'TicketService', user_id: int, media_type: str, media_data: bytes, filename: str, caption: str):
         """Отправка медиа в поддержку через Telegram бот"""
-        import tempfile
-        import os
-        from aiogram.types import InputFile
+        from io import BytesIO
+        from aiogram.types import BufferedInputFile
         from App.Domain.Models.Ticket.Ticket import Ticket
 
-        # Получаем активный тикет пользователя
+        
         if user_id not in ticket_service.active_tickets:
             raise ValueError("У пользователя нет активного тикета")
 
         ticket = ticket_service.active_tickets[user_id]
 
-        # Сохраняем временный файл
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1] if '.' in filename else '') as temp_file:
-            temp_file.write(media_data)
-            temp_file_path = temp_file.name
-
         try:
-            # Создаем InputFile для aiogram
-            input_file = InputFile(temp_file_path, filename=filename)
+            
+            buffered_file = BufferedInputFile(media_data, filename=filename)
 
-            # Отправляем в зависимости от типа медиа
+            
             if media_type == "photo":
                 message = await ticket_service.channel_manager.bot.send_photo(
                     chat_id=ticket_service.channel_manager.support_channel_id,
-                    photo=input_file,
+                    photo=buffered_file,
                     caption=caption,
                     message_thread_id=ticket.topic_thread_id
                 )
             elif media_type == "video":
                 message = await ticket_service.channel_manager.bot.send_video(
                     chat_id=ticket_service.channel_manager.support_channel_id,
-                    video=input_file,
+                    video=buffered_file,
                     caption=caption,
                     message_thread_id=ticket.topic_thread_id
                 )
             elif media_type == "document":
                 message = await ticket_service.channel_manager.bot.send_document(
                     chat_id=ticket_service.channel_manager.support_channel_id,
-                    document=input_file,
+                    document=buffered_file,
                     caption=caption,
                     message_thread_id=ticket.topic_thread_id
                 )
 
-            # Обновляем иконку топика
+            logger.info(f"Медиа {filename} типа {media_type} отправлено в топик тикета 
+            print(f"DEBUG: Медиа {filename} отправлено в Telegram как {media_type}")
+
+            
             if ticket.status == "in_progress":
                 await ticket_service.channel_manager.update_topic_icon(ticket, "❓")
 
-        finally:
-            # Удаляем временный файл
-            os.unlink(temp_file_path)
+        except Exception as e:
+            logger.error(f"Ошибка отправки медиа в Telegram: {e}")
+            print(f"DEBUG: Ошибка отправки медиа: {e}")
+            raise
 
     async def _send_json_by_ticket(self, ticket_id: int, data: dict):
         """Отправить JSON сообщение всем websocket соединениям тикета"""
@@ -353,6 +390,19 @@ class WebSocketManager:
             "type": "support_media",
             "media_type": media_type,
             "media_url": media_url,
+            "filename": filename,
+            "caption": caption,
+            "support_name": support_name,
+            "timestamp": str(datetime.now())
+        }
+        await self._send_json_by_ticket(ticket_id, message_data)
+
+    async def send_support_media_base64_to_client(self, ticket_id: int, media_type: str, base64_data: str, filename: str, caption: str, support_name: str):
+        """Отправить медиа поддержки клиенту через websocket в base64 формате"""
+        message_data = {
+            "type": "support_media_base64",
+            "media_type": media_type,
+            "media_data": base64_data,
             "filename": filename,
             "caption": caption,
             "support_name": support_name,

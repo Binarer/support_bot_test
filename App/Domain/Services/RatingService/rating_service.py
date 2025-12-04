@@ -30,7 +30,7 @@ class RatingService:
 
             if existing_rating:
                 existing_rating.rating = rating
-                logger.info(f"Обновлен рейтинг для тикета #{ticket_display_id} от пользователя {user_id}: {rating}")
+                logger.info(f"Обновлен рейтинг для тикета 
             else:
                 new_rating = TicketRating(
                     ticket_id=ticket_record.id,
@@ -38,13 +38,13 @@ class RatingService:
                     rating=rating
                 )
                 db.add(new_rating)
-                logger.info(f"Создан новый рейтинг для тикета #{ticket_display_id} от пользователя {user_id}: {rating}")
+                logger.info(f"Создан новый рейтинг для тикета 
 
             db.commit()
             return True
         except Exception as e:
             db.rollback()
-            logger.error(f"Ошибка сохранения оценки для тикета #{ticket_display_id}: {e}")
+            logger.error(f"Ошибка сохранения оценки для тикета 
             return False
         finally:
             db.close()
@@ -67,11 +67,11 @@ class RatingService:
             if existing_rating:
                 existing_rating.comment = comment
                 db.commit()
-                logger.info(f"Добавлен комментарий к рейтингу тикета #{ticket_display_id}")
+                logger.info(f"Добавлен комментарий к рейтингу тикета 
             else:
-                logger.warning(f"Рейтинг не найден для комментария к тикету #{ticket_display_id}")
+                logger.warning(f"Рейтинг не найден для комментария к тикету 
         except Exception as e:
             db.rollback()
-            logger.error(f"Ошибка сохранения комментария для тикета #{ticket_display_id}: {e}")
+            logger.error(f"Ошибка сохранения комментария для тикета 
         finally:
             db.close()

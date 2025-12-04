@@ -51,7 +51,7 @@ class MessageService:
 
                 success = await self.ticket_service.rename_ticket(rename_ticket_id, text.strip())
                 if success:
-                    await message.answer(f"✅ Тикет #{rename_ticket_id} переименован в: {text.strip()}")
+                    await message.answer(f"✅ Тикет 
                 else:
                     await message.answer("❌ Не удалось переименовать тикет")
 

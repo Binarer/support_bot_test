@@ -6,15 +6,11 @@ from App.Infrastructure.Config import config
 
 logger = logging.getLogger(__name__)
 
-# Создаем базовый класс для моделей
 Base = declarative_base()
 
-# Создаем синхронный движок
 engine = create_engine(config.DATABASE_URL, echo=False)
 
-# Создаем сессию
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 
 def get_db() -> Session:
     """Получить сессию базы данных"""

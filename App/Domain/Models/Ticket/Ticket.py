@@ -9,22 +9,19 @@ from App.Domain.Enums.TicketStatus.TicketStatus import TicketStatus
 class Ticket:
     """Доменная модель тикета"""
 
-    # Основные данные тикета
+    
     user_id: int
     username: str
     user_message: str
     category: str
-
-    # Идентификаторы
+    
     db_id: Optional[int] = None
     display_id: Optional[int] = None
 
-    # Telegram IDs
     channel_message_id: Optional[int] = None
     topic_thread_id: Optional[int] = None
     user_message_id: Optional[int] = None
-
-    # Статус и метаданные
+    
     status: TicketStatus = TicketStatus.OPEN
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

@@ -1,53 +1,67 @@
+# Support Bot (Телегарам бот поддержки)
+
+Telegram бот поддержки с системой тикетов, HTTP API и WebSocket для обработки обращений пользователей.
+
+### 1. запуск бота
+
+```bash
+docker-compose up -d
+```
+
+### 2. Проверьте запуск
+
+- **Бот**: Должен быть онлайн в Telegram
+- **API**: `http://localhost:8000/docs` - Swagger UI
+- **pgAdmin**: `http://localhost:8080` (admin@ticketbot.local / admin123)
+- **База данных**: `localhost:15432`
+
+### Основные endpoints:
+
+- `POST /api/ticket/create` - Создать новый тикет
+- `POST /api/ticket/{id}/message` - Отправить сообщение в тикет
+- `GET /api/ticket/{id}/status` - Получить статус тикета
+- `POST /api/ticket/{id}/close` - Закрыть тикет
+- `POST /api/ticket/{id}/rating` - Оценить тикет
+- `WebSocket /ws/ticket/{id}` - Подключение к реальному времени
+
+## Структура проекта
 
 ```
-support_bot_test
-├─ .idea
-│  ├─ inspectionProfiles
-│  │  └─ profiles_settings.xml
-│  ├─ misc.xml
-│  ├─ modules.xml
-│  ├─ MypyPlugin.xml
-│  ├─ PylintPlugin.xml
-│  ├─ support_bot_test.iml
-│  ├─ vcs.xml
-│  └─ workspace.xml
-├─ App
-│  ├─ Application
-│  │  ├─ Dto
-│  │  ├─ Jobs
-│  │  ├─ Middleware
-│  │  └─ Queries
-│  ├─ Domain
-│  │  ├─ Enums
-│  │  │  └─ TicketStatus
-│  │  │     └─ TicketStatus.py
-│  │  ├─ Models
-│  │  │  ├─ Ticket
-│  │  │  │  └─ Ticket.py
-│  │  │  └─ TicketStates
-│  │  │     └─ ticket_states.py
-│  │  └─ Services
-│  │     ├─ CallbackService
-│  │     │  └─ callback_service.py
-│  │     ├─ MessageService
-│  │     │  └─ message_service.py
-│  │     ├─ TicketService
-│  │     │  └─ ticket_service.py
-│  │     └─ __init__.py
-│  └─ Infrastructure
-│     ├─ Actions
-│     ├─ Components
-│     │  └─ TelegramBot
-│     │     ├─ ChannelManager
-│     │     │  └─ channel_manager.py
-│     │     ├─ processors
-│     │     │  └─ message_processor.py
-│     │     └─ telegram_bot.py
-│     ├─ Config
-│     │  └─ __init__.py
-│     └─ storage
-├─ main.py
-├─ README.md
-└─ requirements.txt
-
+.
+├── App/                          # Основной код приложения
+│   ├── Domain/                   # Бизнес логика
+│   ├── Infrastructure/           # Инфраструктура и сервисы
+│   └── ...
+├── alembic/                      # Миграции базы данных
+├── init-scripts/                 # Скрипты инициализации БД
+├── main.py                       # Точка входа
+├── requirements.txt              # Python зависимости
+├── docker-compose.yml            # Docker конфигурация
+├── Dockerfile                    # Сборка образа
+├── .env.example                  # Пример конфигурации
+└── bot.json                      # Сообщения и клавиатуры бота
 ```
+
+## Логирование
+
+Логи приложения записываются в файл `bot.log` и выводятся в консоль.
+Уровень логирования настраивается переменной `LOG_LEVEL` (DEBUG, INFO, WARNING, ERROR).
+
+## Разработка
+
+Для разработки без Docker:
+
+```bash
+# Установка зависимостей
+pip install -r requirements.txt
+
+# Запуск миграций
+alembic upgrade head
+
+# Запуск бота
+python main.py
+```
+
+## Контакты
+dev by
+https://t.me/@wasitfallen
