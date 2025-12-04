@@ -32,7 +32,6 @@ from App.Domain.Models.UpdateResponse.UpdateResponse import UpdateResponse
 from fastapi import Query, Path, WebSocket
 from App.Infrastructure.Models.database import init_db
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 logging.basicConfig(
@@ -322,13 +321,8 @@ async def main():
             openapi_url="/openapi.json"
         )
 
-        api_app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=False,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
+        # CORS обрабатывается на уровне nginx, не добавляем middleware в FastAPI
+        # api_app.add_middleware(...)
 
         config_obj = uvicorn.Config(
             api_app,
